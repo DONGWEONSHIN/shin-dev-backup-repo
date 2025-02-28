@@ -1,20 +1,66 @@
 # Python : 3.9.21
 # Created: Feb. 27. 2025
-# Updated: Feb. 27. 2025
+# Updated: Feb. 28. 2025
 # Author: D.W. SHIN
 
 import whisper
 import os
 import ffmpeg
-from pydub import AudioSegment
-from fastapi import FastAPI, File, UploadFile
+import re
+import nltk
 import shutil
+from pydub import AudioSegment
+from fastapi import FastAPI, File, UploadFile, HTTPException
+from nltk.tokenize import sent_tokenize
+from sumy.parsers.plaintext import PlaintextParser
+from sumy.nlp.tokenizers import Tokenizer
+from sumy.summarizers.text_rank import TextRankSummarizer
+
+# NLTK punkt 다운로드 (경로 지정 없이 기본값 사용)
+nltk.download("punkt", quiet=True)
 
 # FastAPI 앱 생성
 app = FastAPI()
 
 # Whisper 모델 로드 (tiny, base, small, medium, large 중 선택 가능)
-model = whisper.load_model("large")
+MODEL_SIZE = os.getenv("WHISPER_MODEL", "small")
+model = whisper.load_model(MODEL_SIZE)
+
+
+# FFmpeg 실행 가능 여부 확인 함수
+def check_ffmpeg():
+    """FFmpeg 및 ffprobe 실행 가능 여부 확인"""
+    ffmpeg_path = shutil.which("ffmpeg")
+    ffprobe_path = shutil.which("ffprobe")
+
+    if not ffmpeg_path or not ffprobe_path:
+        raise HTTPException(
+            status_code=500,
+            detail=f"FFmpeg 또는 ffprobe가 설치되지 않았거나 찾을 수 없습니다. "
+            f"(ffmpeg: {ffmpeg_path}, ffprobe: {ffprobe_path})",
+        )
+
+    try:
+        # `ffmpeg.probe()`를 실행 파일이 아닌 실제 오디오 파일로 실행
+        test_audio = "/usr/share/sounds/alsa/Front_Center.wav"  # 시스템 내 기본 오디오 파일 (Ubuntu 기본 제공)
+        ffmpeg.probe(test_audio)
+    except ffmpeg.Error as e:
+        stderr_output = e.stderr.decode() if hasattr(e, "stderr") else str(e)
+        raise HTTPException(
+            status_code=500, detail=f"FFmpeg 실행 중 오류 발생:\n{stderr_output}"
+        )
+
+
+check_ffmpeg()
+
+
+# 파일 확장자 검증 함수 (MP3, WAV, M4A 지원)
+def validate_audio_file(filename: str):
+    if not filename.lower().endswith(("mp3", "wav", "m4a")):
+        raise HTTPException(
+            status_code=400,
+            detail=f"지원되지 않는 파일 형식입니다: {filename.split('.')[-1]}",
+        )
 
 
 # 오디오 변환 함수 (MP3 → WAV 등 지원)
@@ -25,16 +71,45 @@ def convert_to_wav(input_file: str, output_file: str):
 
 # STT 변환 함수
 def transcribe_audio(file_path: str) -> str:
-    result = model.transcribe(file_path)
-    return result["text"]
+    try:
+        result = model.transcribe(file_path)
+        return result["text"]
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"STT 변환 중 오류 발생: {str(e)}")
+
+
+# 텍스트 전처리 함수 (문장 분리 및 불필요한 단어 제거)
+def preprocess_text(text: str) -> str:
+    # 불필요한 단어 제거
+    text = re.sub(r"\b(음|어|그러니까|음...|아|에|그|자|어...)\b", "", text)
+    try:
+        # 문장 분리
+        sentences = sent_tokenize(text)
+        # 공백 정리 및 재구성
+        cleaned_text = " ".join(sentences)
+        return cleaned_text.strip()
+    except LookupError:
+        nltk.download("punkt", quiet=True)
+        return " ".join(sent_tokenize(text)).strip()
+
+
+# 추출 요약 함수 (TextRank 사용)
+def extractive_summary(text: str, sentence_count: int = 3) -> str:
+    parser = PlaintextParser.from_string(text, Tokenizer("korean"))
+    summarizer = TextRankSummarizer()
+    summary_sentences = summarizer(parser.document, sentence_count)
+    summary = " ".join(str(sentence) for sentence in summary_sentences)
+    return summary.strip()
 
 
 # FastAPI 엔드포인트: 파일 업로드 & STT 변환
 @app.post("/stt/")
 async def upload_audio(file: UploadFile = File(...)):
+    validate_audio_file(file.filename)
+
     # 업로드된 파일 저장 경로
+    os.makedirs("temp", exist_ok=True)  # temp 폴더 자동 생성
     file_path = f"temp/{file.filename}"
-    os.makedirs("temp", exist_ok=True)
 
     # 파일 저장
     with open(file_path, "wb") as buffer:
@@ -49,9 +124,50 @@ async def upload_audio(file: UploadFile = File(...)):
     # STT 실행
     transcript = transcribe_audio(wav_path)
 
-    # 변환된 텍스트를 TXT 파일로 저장
-    txt_path = wav_path.replace(".wav", ".txt")
-    with open(txt_path, "w", encoding="utf-8") as txt_file:
-        txt_file.write(transcript)
+    # 텍스트 전처리 실행
+    processed_text = preprocess_text(transcript)
 
-    return {"transcript": transcript, "txt_file": txt_path}
+    # 변환된 텍스트를 TXT 파일로 저장
+    txt_path = wav_path.replace(".wav", "_processed.txt")
+    with open(txt_path, "w", encoding="utf-8") as txt_file:
+        txt_file.write(processed_text)
+
+    return {"processed_text": processed_text, "txt_file": txt_path}
+
+
+# FastAPI 엔드포인트: 추출 요약 (TextRank 기반)
+@app.post("/summarize/extractive/")
+async def summarize_extractive(text: str, sentence_count: int = 3):
+    summary = extractive_summary(text, sentence_count)
+    return {"summary": summary}
+
+
+# FastAPI 엔드포인트: 파일 업로드 후 요약
+@app.post("/summarize/file/")
+async def summarize_file(file: UploadFile = File(...), sentence_count: int = 3):
+    if not file.filename.endswith(".txt"):
+        raise HTTPException(
+            status_code=400,
+            detail="지원되지 않는 파일 형식입니다. .txt 파일만 업로드하세요.",
+        )
+
+    # 파일 저장 경로
+    file_path = f"temp/{file.filename}"
+    os.makedirs("temp", exist_ok=True)
+
+    with open(file_path, "wb") as buffer:
+        shutil.copyfileobj(file.file, buffer)
+
+    # 파일 내용 읽기
+    with open(file_path, "r", encoding="utf-8") as f:
+        text = f.read()
+
+    # 요약 수행
+    summary = extractive_summary(text, sentence_count)
+
+    # 요약된 내용을 파일로 저장
+    summary_path = file_path.replace(".txt", "_summary.txt")
+    with open(summary_path, "w", encoding="utf-8") as summary_file:
+        summary_file.write(summary)
+
+    return {"summary": summary, "txt_file": summary_path}

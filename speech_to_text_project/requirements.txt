@@ -1,8 +1,12 @@
-fastapi
-uvicorn
-openai-whisper
-pydub
-ffmpeg-python
-python-multipart
+fastapi==0.115.8
+uvicorn==0.34.0
+openai-whisper==20240930
+pydub==0.25.1
+ffmpeg-python==0.2.0
+python-multipart==0.0.20
+nltk==3.9.1
+transformers==4.38.2
+sumy==0.11.0
+konlpy==0.6.0
 
-
+# pip3 install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu118
