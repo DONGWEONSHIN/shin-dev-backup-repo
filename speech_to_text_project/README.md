@@ -91,7 +91,7 @@ curl -X 'POST'
   -F 'file=@your_audio_file.mp3'
 ```
 
-### **추가 기능 (whisper_stt_v2.py 전용)**
+### **추가 기능 (whisper_stt.py 전용)**
 #### 📌 **추출 요약 (Extractive Summary) 사용 방법**
 ```bash
 curl -X 'POST'
