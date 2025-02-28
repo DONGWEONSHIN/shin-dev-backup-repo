@@ -50,6 +50,54 @@
   - 학습 과정에서 배운 점과 참고 자료.
   - 문제 해결 과정 및 코드 스니펫.
 
+### 8. [사람 감지 프로젝트 (`people_detector` 디렉토리)](./people_detector)
+- **설명**: YOLOv5를 사용하여 이미지에서 사람을 감지하고 카운트하는 프로젝트.
+- **주요 내용**:
+  - **YOLOv5** 기반 객체 탐지 모델 활용.
+  - OpenCV 및 PyTorch를 사용한 이미지 분석.
+  - **이미지 속 사람의 수를 자동으로 카운트하는 기능 제공**.
+- **실행 방법**:
+  ```bash
+  cd people_detector
+  python detect_people.py --source path/to/image.jpg
+
+### 9. [패키지 버전 자동 추가 도구 (`requirements-updater` 디렉토리)](./requirements-updater)
+- **설명**: `requirements.txt` 파일에서 **누락된 패키지 버전을 자동으로 추가하는 도구**.
+- **주요 내용**:
+  - `requirements.txt` 내에서 버전 정보가 없는 패키지를 찾아 현재 환경의 버전 정보를 추가.
+  - `pkg_resources` 라이브러리를 활용하여 설치된 패키지 정보를 가져와 업데이트.
+  - **Python 3.7 이상에서 실행 가능**.
+- **실행 방법**:
+  ```bash
+  cd requirements-updater
+  python add_versions_to_requirements.py
+
+### 10. [음성 → 텍스트 변환 프로젝트 (`speech_to_text_project` 디렉토리)](./speech_to_text_project)
+- **설명**: OpenAI Whisper 모델을 활용하여 음성을 텍스트로 변환하는 **STT(Speech-to-Text) 웹 애플리케이션**.
+- **주요 내용**:
+  - **`whisper_stt.py`**: 기본적인 음성 변환 기능 제공.
+  - **`whisper_stt_v2.py`**: 음성 변환 + **텍스트 요약, 환경변수 활용, Base64 변환** 기능 추가.
+  - **FastAPI 기반 REST API 제공** (Swagger UI 및 cURL 명령어로 테스트 가능).
+  - **MP3, WAV, M4A 등 다양한 오디오 포맷 지원**.
+  - **추출 요약(TextRank) 및 추상 요약(BART) 기능 제공**.
+- **실행 방법**:
+  ```bash
+  cd speech_to_text_project
+  uvicorn whisper_stt:app --host 0.0.0.0 --port 8000  # 기본 실행
+  uvicorn whisper_stt_v2:app --host 0.0.0.0 --port 8000  # 확장된 기능 실행
+
+### 11. [텍스트 생성 프로젝트 (`text_gen_project` 디렉토리)](./text_gen_project)
+- **설명**: Hugging Face의 **Transformers** 라이브러리를 사용하여 **텍스트 생성 모델을 구축**하는 프로젝트.
+- **주요 내용**:
+  - **Hugging Face 모델을 활용한 텍스트 생성**.
+  - **PyTorch 기반 실행 환경 지원**.
+  - Apple Silicon(M1/M2) 환경에서 **Metal Performance Shaders(MPS) 지원 확인**.
+- **실행 방법**:
+  ```bash
+  cd text_gen_project
+  python text_generation_pipeline.py
+
+
 ---
 
 ## 🚀 시작하기
