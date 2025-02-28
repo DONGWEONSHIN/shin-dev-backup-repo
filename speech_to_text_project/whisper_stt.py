@@ -159,7 +159,7 @@ async def summarize_extractive(text: str, sentence_count: int = 3):
 
 
 # FastAPI 엔드포인트: 파일 업로드 후 요약
-@app.post("/summarize/file/")
+@app.post("/summarize/extractive/file/")
 async def summarize_file(file: UploadFile = File(...), sentence_count: int = 3):
     if not file.filename.endswith(".txt"):
         raise HTTPException(
