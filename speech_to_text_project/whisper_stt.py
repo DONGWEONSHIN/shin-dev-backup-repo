@@ -9,12 +9,14 @@ import ffmpeg
 import re
 import nltk
 import shutil
+import torch
 from pydub import AudioSegment
 from fastapi import FastAPI, File, UploadFile, HTTPException
 from nltk.tokenize import sent_tokenize
 from sumy.parsers.plaintext import PlaintextParser
 from sumy.nlp.tokenizers import Tokenizer
 from sumy.summarizers.text_rank import TextRankSummarizer
+from transformers import pipeline
 
 # NLTK punkt 다운로드 (경로 지정 없이 기본값 사용)
 nltk.download("punkt", quiet=True)
@@ -25,6 +27,12 @@ app = FastAPI()
 # Whisper 모델 로드 (tiny, base, small, medium, large 중 선택 가능)
 MODEL_SIZE = os.getenv("WHISPER_MODEL", "small")
 model = whisper.load_model(MODEL_SIZE)
+
+# Hugging Face 추상 요약 모델 로드
+SUMMARY_MODEL = "facebook/bart-large-cnn"
+summary_pipeline = pipeline(
+    "summarization", model=SUMMARY_MODEL, device=0 if torch.cuda.is_available() else -1
+)
 
 
 # FFmpeg 실행 가능 여부 확인 함수
@@ -102,6 +110,14 @@ def extractive_summary(text: str, sentence_count: int = 3) -> str:
     return summary.strip()
 
 
+# 추상 요약 함수 (BART 사용)
+def abstractive_summary(text: str, max_length: int = 150, min_length: int = 50) -> str:
+    summary = summary_pipeline(
+        text, max_length=max_length, min_length=min_length, do_sample=False
+    )
+    return summary[0]["summary_text"]
+
+
 # FastAPI 엔드포인트: 파일 업로드 & STT 변환
 @app.post("/stt/")
 async def upload_audio(file: UploadFile = File(...)):
@@ -164,6 +180,46 @@ async def summarize_file(file: UploadFile = File(...), sentence_count: int = 3):
 
     # 요약 수행
     summary = extractive_summary(text, sentence_count)
+
+    # 요약된 내용을 파일로 저장
+    summary_path = file_path.replace(".txt", "_summary.txt")
+    with open(summary_path, "w", encoding="utf-8") as summary_file:
+        summary_file.write(summary)
+
+    return {"summary": summary, "txt_file": summary_path}
+
+
+# FastAPI 엔드포인트: 추상 요약 (BART 기반)
+@app.post("/summarize/abstractive/")
+async def summarize_abstractive(text: str, max_length: int = 150, min_length: int = 50):
+    summary = abstractive_summary(text, max_length, min_length)
+    return {"summary": summary}
+
+
+# FastAPI 엔드포인트: 파일 업로드 후 추상 요약 수행
+@app.post("/summarize/abstractive/file/")
+async def summarize_abstractive_file(
+    file: UploadFile = File(...), max_length: int = 150, min_length: int = 50
+):
+    if not file.filename.endswith(".txt"):
+        raise HTTPException(
+            status_code=400,
+            detail="지원되지 않는 파일 형식입니다. .txt 파일만 업로드하세요.",
+        )
+
+    # 파일 저장 경로
+    file_path = f"temp/{file.filename}"
+    os.makedirs("temp", exist_ok=True)
+
+    with open(file_path, "wb") as buffer:
+        shutil.copyfileobj(file.file, buffer)
+
+    # 파일 내용 읽기
+    with open(file_path, "r", encoding="utf-8") as f:
+        text = f.read()
+
+    # 요약 수행
+    summary = abstractive_summary(text, max_length, min_length)
 
     # 요약된 내용을 파일로 저장
     summary_path = file_path.replace(".txt", "_summary.txt")
