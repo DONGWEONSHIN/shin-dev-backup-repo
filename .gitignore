@@ -1,10 +1,12 @@
-llm/finetuned_model
-llm/results
 
+fine_tune/data/
 fine_tune/models/
 fine_tune/wandb/
 
 game/
+
+llm/finetuned_model
+llm/results
 
 people_detector/*.jpg
 people_detector/*.pt
