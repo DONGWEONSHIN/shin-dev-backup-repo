@@ -97,6 +97,17 @@
   cd text_gen_project
   python text_generation_pipeline.py
 
+### 12. [파인튜닝 실습 (`fine_tune` 디렉토리)](./fine_tune)
+- **설명**: Hugging Face, WandB 그리고 Mistral 모델을 활용하여 **금융 도메인 특화 파인튜닝** 실습 프로젝트.
+- **주요 내용**:
+  - `mistral_finetune.ipynb`: Mistral 모델을 사용하여 금융 데이터셋 기반 파인튜닝 실험 진행.
+  - `transformers`, `datasets`, `accelerate` 등을 활용한 효율적인 파인튜닝 전략 구현.
+  - 기존 논문에서 사용하던 Google Colab 환경을 로컬 서버에서 실행 가능하도록 재구성.
+- **주요 실습 주제**:
+  - 데이터셋 로딩 및 토크나이징.
+  - Trainer API를 활용한 모델 학습.
+  - 학습된 모델을 통한 텍스트 생성 결과 확인.
+
 
 ---
 
