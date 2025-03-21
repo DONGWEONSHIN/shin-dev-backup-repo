@@ -1,2 +1,15 @@
 llm/finetuned_model
 llm/results
+
+fine_tune/models/
+fine_tune/wandb/
+
+game/
+
+people_detector/*.jpg
+people_detector/*.pt
+
+speech_to_text_project/__pycache__/
+speech_to_text_project/temp/
+speech_to_text_project/.env
+
