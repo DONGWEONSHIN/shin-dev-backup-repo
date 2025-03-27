@@ -29,7 +29,7 @@ load_dotenv()
 app = FastAPI()
 
 # Whisper 모델 로드
-MODEL_SIZE = os.getenv("WHISPER_MODEL", "small")
+MODEL_SIZE = os.getenv("WHISPER_MODEL", "large-v2")
 print(f"Using Whisper model: {MODEL_SIZE}")
 model = whisper.load_model(MODEL_SIZE)
 

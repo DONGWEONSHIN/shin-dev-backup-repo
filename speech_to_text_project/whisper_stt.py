@@ -25,7 +25,7 @@ nltk.download("punkt", quiet=True)
 app = FastAPI()
 
 # Whisper 모델 로드 (tiny, base, small, medium, large 중 선택 가능)
-MODEL_SIZE = os.getenv("WHISPER_MODEL", "small")
+MODEL_SIZE = os.getenv("WHISPER_MODEL", "large-v2")
 model = whisper.load_model(MODEL_SIZE)
 
 # Hugging Face 추상 요약 모델 로드
