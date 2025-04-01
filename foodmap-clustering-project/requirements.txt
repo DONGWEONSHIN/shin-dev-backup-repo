@@ -1,0 +1,10 @@
+pandas
+numpy
+scikit-learn
+folium
+pyproj
+matplotlib
+openpyxl
+
+# conda install pandas numpy scikit-learn folium pyproj matplotlib openpyxl
+# conda install -c conda-forge jupyterlab ipykernel
