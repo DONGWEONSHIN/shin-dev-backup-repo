@@ -12,7 +12,7 @@ load_dotenv()
 KAKAO_API_KEY = os.getenv("KAKAO_API_KEY")
 
 # 2. 파일 로드
-INPUT_PATH = "../data/apt_trades_mapo_2024.csv"
+INPUT_PATH = "../data/raw_apt_trades_mapo_2024.csv"
 OUTPUT_PATH = "../data/cleaned_apt_trades_mapo_2024.csv"
 df = pd.read_csv(INPUT_PATH)
 

@@ -1,10 +1,11 @@
-import pandas as pd
-from sklearn.model_selection import train_test_split
-from sklearn.metrics import mean_absolute_error, root_mean_squared_error
-import xgboost as xgb
-import joblib
 import os
+
+import joblib
 import numpy as np
+import pandas as pd
+import xgboost as xgb
+from sklearn.metrics import mean_absolute_error, root_mean_squared_error
+from sklearn.model_selection import train_test_split
 
 # 1. 데이터 로드
 INPUT_PATH = "../data/cleaned_apt_trades_mapo_2024.csv"

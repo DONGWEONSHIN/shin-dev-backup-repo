@@ -1,10 +1,8 @@
 import os
-import time
+import subprocess
 import xml.etree.ElementTree as ET
 
 import pandas as pd
-import requests
-import subprocess
 from dotenv import load_dotenv
 
 # . env 파일에서 환경 변수 로드
@@ -54,10 +52,18 @@ for DEAL_YMD in DEAL_YMDS:
         if result_code == "000":
             for item in root.iter("item"):
                 try:
+                    road_nm = item.findtext("roadNm")
+                    road_nm_bonbun = int(item.findtext("roadNmBonbun"))
+                    road_nm_bubun = int(item.findtext("roadNmBubun"))
+
+                    road_address = f"{road_nm} {road_nm_bonbun}"
+                    if road_nm_bubun != 0:
+                        road_address += f"-{road_nm_bubun}"
+
                     row = {
                         "아파트": item.findtext("aptNm"),
                         "법정동": item.findtext("umdNm"),
-                        "도로명주소": f'{item.findtext("roadNm")} {int(item.findtext("roadNmBonbun"))}',
+                        "도로명주소": road_address,
                         "거래금액": item.findtext("dealAmount")
                         .replace(",", "")
                         .strip(),
@@ -77,7 +83,7 @@ for DEAL_YMD in DEAL_YMDS:
 
 # pandas DataFrame으로 변환 후 저장
 df = pd.DataFrame(all_rows)
-df.to_csv("../data/apt_trades_mapo_2024.csv", index=False, encoding="utf-8-sig")
+df.to_csv("../data/raw_apt_trades_mapo_2024.csv", index=False, encoding="utf-8-sig")
 
-print("저장 완료: apt_trades_mapo_2024.csv")
+print("저장 완료: raw_apt_trades_mapo_2024.csv")
 print(f"총 {len(df)} 건의 거래 데이터가 저장되었습니다.")
