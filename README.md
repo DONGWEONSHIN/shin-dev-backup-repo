@@ -34,7 +34,8 @@
 | 10 | speech_to_text_project | 음성을 텍스트로 변환하는 STT 웹앱 | Whisper, FastAPI |
 | 11 | text_gen_project | 텍스트 생성 모델 구현 | Hugging Face, PyTorch |
 | 12 | fine_tune | 금융 특화 파인튜닝 실험 | Mistral, Transformers, WandB |
-| 13 | real_estate_project | 서울 마포구 아파트 실거래가 분석 및 예측 | XGBoost, SHAP, Folium, Pandas |
+| 13 | foodmap-clustering-project | 서울 음식점 클러스터링 및 상권 분석 | KMeans, DBSCAN, MeanShift, Folium, Pandas |
+| 14 | real_estate_project | 서울 마포구 아파트 실거래가 분석 및 예측 | XGBoost, SHAP, Folium, Pandas |
 
 ---
 
@@ -107,7 +108,25 @@ python text_generation_pipeline.py
 - 금융 도메인 LLM 파인튜닝 실습
 - Mistral, WandB 활용
 
-### 13. `real_estate_project`
+### 13. `foodmap-clustering-project`
+- 서울시 일반음식점 데이터를 기반으로 클러스터링을 통해 주요 상권을 식별하고, 이를 지도로 시각화하는 프로젝트
+- 주요 분석 흐름:
+  - `좌표 정제 및 변환`: EPSG:2097 → 위경도
+  - `클러스터링`: KMeans, DBSCAN, MeanShift
+  - `시각화`: Folium을 활용한 지도 기반 시각화
+- 주요 특징:
+  - Elbow 및 Silhouette 기법을 활용한 KMeans 최적화
+  - 노이즈 제거 기능 포함(DBSCAN)
+  - 자동 군집 수 탐색 기능(MeanShift)
+```bash
+cd foodmap-clustering-project
+conda create -n foodmap-env python=3.10
+conda activate foodmap-env
+pip install -r requirements.txt
+jupyter lab
+```
+
+### 14. `real_estate_project`
 - 서울 마포구의 아파트 실거래 데이터를 분석하고, 예측 모델을 통해 가성비 좋은 지역을 지도 위에 시각화한 프로젝트
 - 주요 특징:
   - `XGBoost`를 활용한 아파트 가격 예측
