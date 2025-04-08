@@ -42,7 +42,7 @@ pip install -r requirements.txt
 | 11 | text_gen_project | 텍스트 생성 파이프라인 | Hugging Face, PyTorch |
 | 12 | fine_tune | LLM 금융 데이터 파인튜닝 | Mistral, Qwen, PEFT |
 | 13 | foodmap-clustering-project | 서울 음식점 상권 분석 | KMeans, Folium |
-| 14 | real_estate_project | 마포구 부동산 예측 | XGBoost, SHAP, 지도 시각화 |
+| 14 | real_estate_project | 서울 아파트 부동산 예측 | XGBoost, SHAP, 지도 시각화 |
 
 ---
 
@@ -176,7 +176,7 @@ jupyter lab
 ```
 
 ### 13. `foodmap-clustering-project`
-- **설명**: 서울시 음식점 데이터를 클러스터링하여 주요 상권을 분석합니다.
+- **설명**: 서울시 마포구 음식점 데이터를 클러스터링하여 주요 상권을 분석합니다.
 - **주요 특징**:
   - KMeans, DBSCAN, MeanShift 모델 비교
   - EPSG:2097 → 위경도 변환
