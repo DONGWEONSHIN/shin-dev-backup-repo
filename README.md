@@ -33,7 +33,7 @@
 | 9 | requirements-updater | 누락된 패키지 버전 자동 추가 도구 | pkg_resources |
 | 10 | speech_to_text_project | 음성을 텍스트로 변환하는 STT 웹앱 | Whisper, FastAPI |
 | 11 | text_gen_project | 텍스트 생성 모델 구현 | Hugging Face, PyTorch |
-| 12 | fine_tune | 금융 특화 파인튜닝 실험 | Mistral, Transformers, WandB |
+| 12 | fine_tune | 금융 뉴스 데이터 기반 LLM 파인튜닝 실험 | Mistral-7B, Qwen, PEFT, LoRA, WandB |
 | 13 | foodmap-clustering-project | 서울 음식점 클러스터링 및 상권 분석 | KMeans, DBSCAN, MeanShift, Folium, Pandas |
 | 14 | real_estate_project | 서울 마포구 아파트 실거래가 분석 및 예측 | XGBoost, SHAP, Folium, Pandas |
 
@@ -105,8 +105,26 @@ python text_generation_pipeline.py
 ```
 
 ### 12. `fine_tune`
-- 금융 도메인 LLM 파인튜닝 실습
-- Mistral, WandB 활용
+- 금융 도메인 뉴스 데이터를 활용한 **대규모 언어 모델(LLM)** 파인튜닝 실험 프로젝트
+- `Mistral-7B`와 `Qwen2.5-7B` 모델을 활용하여 사전학습 모델을 금융 데이터에 특화
+- 주요 구성:
+  - `mistral_finetune.ipynb` / `qwen_finetune.ipynb`: 각각 Mistral 및 Qwen 모델 기반 파인튜닝 노트북
+  - `data/`: 실험에 사용된 원본 CSV 및 엑셀 뉴스 데이터
+  - `models/`: 학습된 LoRA 어댑터 및 각 체크포인트 결과 저장
+  - `images/`: 학습 로그, 시스템 모니터링 이미지
+  - `wandb/`: 실시간 학습 로깅 데이터(WandB 연동)
+- 학습 특징:
+  - **PEFT(LoRA)** 방식으로 빠르고 효율적인 파인튜닝
+  - Hugging Face `transformers`, `datasets`, `accelerate`, `trl` 등 최신 스택 활용
+  - 시스템 모니터링 및 손실 지표 시각화 (WandB 연동)
+- 실행 환경 예시:
+```bash
+cd fine_tune
+conda create -n finetune-env python=3.10
+conda activate finetune-env
+pip install -r requirements.txt  # 또는 notebook 내 셀 참조
+jupyter lab
+```
 
 ### 13. `foodmap-clustering-project`
 - 서울시 일반음식점 데이터를 기반으로 클러스터링을 통해 주요 상권을 식별하고, 이를 지도로 시각화하는 프로젝트
