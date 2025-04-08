@@ -95,7 +95,7 @@ jupyter notebook colab에서kaggle데이터셋다운로드.ipynb
 ### 5. `llm`
 - **설명**: LLaMA 등 LLM 모델을 활용한 파인튜닝 및 추론 실험을 포함합니다.
 - **주요 특징**:
-  - 최신 오픈소스 모델 실습 (Mistral, Qwen 등)
+  - 최신 오픈소스 모델 실습
   - parameter-efficient tuning (LoRA, PEFT) 실험 기반
   - 추론 결과 및 로그 시각화 포함
 ```bash
