@@ -43,7 +43,11 @@ pip install -r requirements.txt
 1. 환경 변수 설정:
 ```bash
 cp .env.example .env
-# .env 파일을 편집하여 OpenAI API 키 추가
+# .env 파일을 편집하여 Ollama 모델명 추가
+# 예시:
+# OLLAMA_MODEL=qwen3:30b-a3b
+# 또는
+# OLLAMA_MODEL=qwen3:8b-q4_K_M
 ```
 
 ## 실행 순서
