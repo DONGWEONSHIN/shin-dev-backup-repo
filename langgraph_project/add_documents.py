@@ -15,6 +15,7 @@ DOCUMENTS_DIR = "documents"
 CHROMA_PERSIST_DIR = "./chroma_db"
 CHUNK_SIZE = 500  # Reduced chunk size for better granularity
 CHUNK_OVERLAP = 100  # Reduced overlap
+OLLAMA_MODEL = os.getenv("OLLAMA_MODEL")
 
 
 def clean_text(text: str) -> str:
@@ -88,7 +89,7 @@ def add_documents(directory_path: str):
     """Add documents from a directory to the vector store with improved processing."""
     # Initialize embeddings
     embeddings = OllamaEmbeddings(
-        model="qwen3:30b-a3b", base_url="http://localhost:11434"
+        model=OLLAMA_MODEL, base_url="http://localhost:11434"
     )
 
     # Initialize text splitter with smaller chunks

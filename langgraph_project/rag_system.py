@@ -17,9 +17,11 @@ from langchain_ollama import ChatOllama, OllamaEmbeddings
 from langgraph.graph import END, StateGraph
 import numpy as np
 from sklearn.metrics.pairwise import cosine_similarity
+import os
 
 # Load environment variables
 load_dotenv()
+OLLAMA_MODEL = os.getenv("OLLAMA_MODEL")
 
 
 # State definition
@@ -34,7 +36,7 @@ class GraphState(TypedDict):
 
 # Initialize components
 llm = ChatOllama(
-    model="qwen3:30b-a3b",
+    model=OLLAMA_MODEL,
     temperature=0,
     system="""당신은 도움이 되는 AI 어시스턴트입니다. 모든 답변을 한국어로 해주세요. 
 전문적이고 정중한 어투를 사용해주세요.
@@ -50,7 +52,7 @@ llm = ChatOllama(
 )
 
 embeddings = OllamaEmbeddings(
-    model="qwen3:30b-a3b",
+    model=OLLAMA_MODEL,
 )
 
 # Initialize vector store
