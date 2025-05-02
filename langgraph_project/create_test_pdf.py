@@ -3,11 +3,26 @@ from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
 from reportlab.lib.pagesizes import letter
 import os
+import platform
+from pathlib import Path
 
 
 def create_test_pdf():
+    # Detect OS and assign font path
+    system = platform.system()
+    font_path = None
+
+    if system == "Darwin":  # macOS
+        font_path = Path.home() / "Library/Fonts/NanumGothic-Regular.ttf"
+    elif system == "Linux":  # Ubuntu or other Linux
+        font_path = Path("/usr/share/fonts/truetype/nanum/NanumGothic.ttf")
+    else:
+        raise OSError(f"Unsupported OS: {system}")
+
+    if not font_path.exists():
+        raise FileNotFoundError(f"Font file not found: {font_path}")
+    
     # Register Korean font
-    font_path = "/usr/share/fonts/truetype/nanum/NanumGothic.ttf"
     pdfmetrics.registerFont(TTFont("NanumGothic", font_path))
 
     # Create directory if it doesn't exist
