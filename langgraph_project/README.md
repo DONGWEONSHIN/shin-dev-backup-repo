@@ -10,37 +10,36 @@
 - 대화형 질의응답 시스템
 - Ollama를 이용한 로컬 LLM 및 임베딩
 
-## 설치 방법
+## 설치 및 실행 순서
 
-### 사전 요구사항
+### 1. 사전 요구사항 및 Ollama 실행
 
 1. Ollama 설치:
    - [Ollama 공식 사이트](https://ollama.ai)에서 설치 방법 확인
-   - 설치 후 다음 명령어로 필요한 모델 다운로드:
+2. Ollama 모델 다운로드:
    ```bash
    ollama pull qwen3:30b-a3b
    ```
+3. Ollama 서버 실행:
+   ```bash
+   ollama serve
+   ```
+   - Ollama가 항상 실행 중이어야 합니다. (별도 터미널에서 실행 권장)
+4. Ollama 서비스가 정상적으로 실행 중인지 확인:
+   ```bash
+   curl http://localhost:11434/api/version
+   ```
+   - 버전 정보가 출력되면 정상적으로 실행 중입니다.
 
-### Conda 사용 (권장)
+### 2. Conda 환경 설정
 
-1. Conda 환경 생성:
 ```bash
 conda env create -f env.yml
 conda activate langgraphrag_venv
 ```
 
-### Pip 사용
+### 3. 환경 변수 설정
 
-1. 가상환경 생성:
-```bash
-python -m venv venv
-source venv/bin/activate  # Windows의 경우 `venv\Scripts\activate`
-pip install -r requirements.txt
-```
-
-### 환경 설정
-
-1. 환경 변수 설정:
 ```bash
 cp .env.example .env
 # .env 파일을 편집하여 Ollama 모델명 추가
@@ -50,18 +49,7 @@ cp .env.example .env
 # OLLAMA_MODEL=qwen3:8b-q4_K_M
 ```
 
-## 실행 순서
-
-시스템은 다음 순서로 실행해야 합니다:
-
-### 1. Ollama 실행 확인
-
-```bash
-# Ollama 서비스가 실행 중인지 확인
-curl http://localhost:11434/api/version
-```
-
-### 2. PDF 문서 준비 (택 1)
+### 4. PDF 문서 준비 (택 1)
 
 A. 테스트 PDF 생성 (선택사항):
 ```bash
@@ -74,7 +62,7 @@ B. 직접 PDF 추가:
 - `documents` 디렉토리에 원하는 PDF 파일을 직접 복사
 - 파일 개수에 제한은 없으나, 많은 파일을 처리할 경우 시간이 소요될 수 있습니다
 
-### 3. 문서 처리 (필수)
+### 5. 문서 처리 (필수)
 ```bash
 python add_documents.py
 ```
@@ -83,7 +71,7 @@ python add_documents.py
 - 문서를 청크로 분할하고 벡터 스토어에 저장합니다
 - PDF 파일을 추가하거나 수정할 때마다 이 스크립트를 다시 실행해야 합니다
 
-### 4. RAG 시스템 사용
+### 6. RAG 시스템 사용
 ```bash
 python test_rag.py
 ```
@@ -130,7 +118,6 @@ langgraph_project/
 ├── documents/         # PDF 저장 디렉토리
 ├── chroma_db/        # 벡터 스토어 디렉토리 (자동 생성)
 ├── env.yml           # Conda 환경 설정
-├── requirements.txt  # Pip 요구사항
 ├── .env             # 환경 변수
 ├── .env.example     # 환경 변수 템플릿
 └── README.md       # 문서
@@ -139,13 +126,18 @@ langgraph_project/
 ## 의존성
 
 - Python 3.10
-- LangChain (0.1.0) & LangGraph (0.0.10)
-- ChromaDB (0.4.22)
-- LangChain-Chroma (0.1.0)
-- PyPDF (5.4.0)
+- LangChain 0.3.24
+- LangGraph 0.4.1
+- ChromaDB 0.6.3
+- FastAPI 0.115.9
+- Uvicorn 0.34.2
+- PyPDF 5.4.0
+- scikit-learn 1.4.1.post1
 - Ollama (로컬 LLM 및 임베딩)
-- LangChain-Ollama (0.1.1)
-- scikit-learn (1.4.1.post1)
+- langchain-ollama 0.3.2
+- langchain-chroma 0.2.3
+- langchain-openai 0.3.15
+- langchain-community 0.3.23
 
 ## 참고 사항
 
@@ -156,24 +148,6 @@ langgraph_project/
 - 문서를 추가하거나 수정할 때마다 `add_documents.py`를 다시 실행해야 함
 - Ollama 모델은 로컬에서 실행되므로 인터넷 연결이 필요하지 않음
 - qwen3:30b-a3b 모델은 상당한 시스템 리소스를 필요로 함
-
-## 실행 순서 요약
-
-1. **환경 설정**
-   - Ollama 설치 및 모델 다운로드
-   - Conda 또는 Pip으로 환경 설정
-
-2. **PDF 문서 준비** (택 1)
-   - `create_test_pdf.py` 실행하여 테스트 문서 생성
-   - 또는 직접 PDF 파일을 `documents` 폴더에 복사
-
-3. **문서 처리** (필수)
-   - `add_documents.py` 실행
-   - 모든 PDF 파일이 처리되고 벡터 스토어에 저장됨
-
-4. **시스템 사용**
-   - `test_rag.py` 실행
-   - 질의응답 수행
 
 ## 주의사항
 
