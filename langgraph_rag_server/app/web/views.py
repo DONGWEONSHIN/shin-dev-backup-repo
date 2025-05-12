@@ -9,7 +9,7 @@ from app.core.config import (
     OLLAMA_MODEL,
     TEMPLATES_DIR,
 )
-from app.core.document_ingest import ingest_documents, delete_related_chroma_files
+from app.core.document_ingest import ingest_documents
 from fastapi import APIRouter, File, HTTPException, Request, UploadFile
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
@@ -74,8 +74,6 @@ def delete_pdf(filename: str):
         embedding_function=embeddings,
         persist_directory=CHROMA_PERSIST_DIR,
     )
-
-
 
     # 3. ChromaDB 벡터 삭제 (where 조건 사용)
     try:

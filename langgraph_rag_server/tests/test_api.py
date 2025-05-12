@@ -89,3 +89,30 @@ def test_rag_query_no_docs():
     response = client.post("/api/v1/rag/query", json=query)
     assert response.status_code == 200
     assert "문서가 없습니다" in response.json()["answer"]
+
+
+def test_rag_query_with_docs():
+    # PDF 1개 업로드
+    with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as tmp:
+        create_test_pdf(tmp.name, text="테스트 PDF\n고구려 장수왕")
+        tmp.seek(0)
+        with open(tmp.name, "rb") as f:
+            response = client.post(
+                "/upload", files={"file": ("test_rag.pdf", f, "application/pdf")}
+            )
+        assert response.status_code == 200
+
+    # 질의
+    query = {"question": "고구려 장수왕은 누구입니까?"}
+    response = client.post("/api/v1/rag/query", json=query)
+    assert response.status_code == 200
+    data = response.json()
+    # answer와 sources가 정상적으로 반환되는지 확인
+    assert "answer" in data
+    assert "sources" in data
+    assert isinstance(data["sources"], list)
+    assert len(data["sources"]) > 0
+    # (선택) answer에 '고구려' 또는 '장수왕'이 포함되는지 등 추가 검증 가능
+
+    # 정리: 업로드한 PDF 삭제
+    client.post("/delete_pdf", params={"filename": "test_rag.pdf"})
