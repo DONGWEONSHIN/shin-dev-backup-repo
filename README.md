@@ -43,6 +43,8 @@ pip install -r requirements.txt
 | 12 | fine_tune | LLM 금융 데이터 파인튜닝 | Mistral, Qwen, PEFT |
 | 13 | foodmap-clustering-project | 서울 음식점 상권 분석 | KMeans, Folium |
 | 14 | real_estate_project | 서울 아파트 부동산 예측 | XGBoost, SHAP, 지도 시각화 |
+| 15 | langgraph_project | LangGraph 기반 PDF RAG 시스템 | LangGraph, LangChain, ChromaDB |
+| 16 | langgraph_rag_server | LangGraph RAG 웹 서버 | FastAPI, LangGraph, ChromaDB |
 
 ---
 
@@ -198,6 +200,34 @@ cd real_estate_project
 conda env create -f env.yml
 conda activate real_estate_project
 jupyter notebook
+```
+
+### 15. `langgraph_project`
+- **설명**: LangGraph와 LangChain을 활용한 PDF 문서 기반 RAG(Retrieval-Augmented Generation) 시스템입니다.
+- **주요 특징**:
+  - PDF 문서 처리 및 청크 분할
+  - Chroma 벡터스토어를 이용한 의미 검색
+  - LangGraph 기반 적응형 RAG 워크플로우
+  - Ollama를 통한 로컬 LLM 연동
+```bash
+cd langgraph_project
+conda env create -f env.yml
+conda activate langgraphrag_venv
+python add_documents.py
+# 이후 RAG 시스템 실행
+```
+
+### 16. `langgraph_rag_server`
+- **설명**: LangGraph 기반 RAG 시스템의 FastAPI 웹 서버 구현 프로젝트입니다.
+- **주요 특징**:
+  - 웹 UI 및 REST API 제공
+  - PDF 업로드 및 벡터스토어 자동 인덱싱
+  - 실시간 질의응답 및 출처 반환
+```bash
+cd langgraph_rag_server
+conda env create -f env.yml
+conda activate langgraph_rag_server_venv
+uvicorn app.main:app --reload --host 0.0.0.0 --port 8100
 ```
 
 ---
