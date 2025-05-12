@@ -34,7 +34,7 @@ pip install -r requirements.txt
 | 3 | gcp | GCP 기반 데이터 관리 및 배포 | Google Cloud, Storage |
 | 4 | kaggle | Kaggle 데이터셋 분석 | 전처리, 시각화 |
 | 5 | llm | 대규모 언어 모델 실험 | LLM, Transformers |
-| 6 | nlp | 자연어 처리 전반 실습 | 텍스트 분류, 전처리 |
+| 6 | nlp | 자연어 처리 및 테이블 데이터 기반 분류 실습을 위한 프로젝트입니다. 대표적으로 스팸 메시지 분류와 GCP Vertex AI 기반 테이블 모델 추론 예제가 포함되어 있습니다.
 | 7 | note_for_memory | 개인 학습 메모 모음 | 코드 요약, 이슈 해결 |
 | 8 | people_detector | 사람 인식 모델 구현 | YOLOv5, OpenCV |
 | 9 | requirements-updater | 패키지 버전 자동 업데이트 도구 | pkg_resources |
@@ -106,15 +106,23 @@ jupyter notebook fineTunning.ipynb
 ```
 
 ### 6. `nlp`
-- **설명**: 자연어 처리 기반 텍스트 분류 실습입니다. 스팸 분류 모델과 전처리 흐름을 포함합니다.
-- **주요 특징**:
-  - 정규표현식 기반 전처리
-  - 벡터화(TFIDF) 및 머신러닝 모델 적용
-  - 혼동 행렬 및 정확도 시각화 포함
+- **설명**: 자연어 처리 및 테이블 데이터 기반 분류 실습을 위한 프로젝트입니다. 대표적으로 스팸 메시지 분류와 GCP Vertex AI 기반 테이블 모델 추론 예제가 포함되어 있습니다.
+- **주요 파일 및 특징**:
+  - `spamNham.ipynb`: SMS 스팸/햄 데이터셋을 활용한 텍스트 분류 실습. 데이터 전처리, 토큰화, 시퀀스 변환, Keras 기반 모델링, 결과 파일 생성까지의 흐름을 다룹니다.
+    - 주요 라이브러리: pandas, numpy, matplotlib, scikit-learn, tensorflow
+    - 데이터: `spam.csv`(원본), `spam.txt`(가공)
+  - `tabular_model_inference.ipynb`: GCP Vertex AI에 배포된 테이블 분류 모델에 Pandas DataFrame 데이터를 API로 추론 요청하는 예제. Titanic 데이터셋을 활용하며, Google Cloud Python SDK 사용법과 API 호출 흐름을 포함합니다.
+    - 주요 라이브러리: pandas, google-cloud-aiplatform, google.protobuf
+    - GCS 버킷 마운트(gcsfuse) 예시 포함
+- **실행 가이드**:
 ```bash
 cd nlp
 jupyter notebook spamNham.ipynb
+jupyter notebook tabular_model_inference.ipynb
 ```
+- **환경설정**:
+  - Python 3.10 이상 권장
+  - 아래 `env.yml` 참고(Conda 환경)
 
 ### 7. `note_for_memory`
 - **설명**: 학습 중 발견한 인사이트, 에러 해결 과정 등을 마크다운 형식으로 정리한 개인 메모 모음입니다.
