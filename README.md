@@ -34,7 +34,7 @@ pip install -r requirements.txt
 | 3 | gcp | GCP 기반 데이터 관리 및 배포 | Google Cloud, Storage |
 | 4 | kaggle | Kaggle 데이터셋 분석 | 전처리, 시각화 |
 | 5 | llm | 대규모 언어 모델 실험 | LLM, Transformers |
-| 6 | nlp | 자연어 처리 및 테이블 데이터 기반 분류 실습을 위한 프로젝트입니다. 대표적으로 스팸 메시지 분류와 GCP Vertex AI 기반 테이블 모델 추론 예제가 포함되어 있습니다.
+| 6 | nlp | 자연어 처리 전반 실습 | 텍스트 분류, 전처리 |
 | 7 | note_for_memory | 개인 학습 메모 모음 | 코드 요약, 이슈 해결 |
 | 8 | people_detector | 사람 인식 모델 구현 | YOLOv5, OpenCV |
 | 9 | requirements-updater | 패키지 버전 자동 업데이트 도구 | pkg_resources |
