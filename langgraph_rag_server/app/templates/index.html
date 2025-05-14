@@ -1,43 +1,26 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="ko">
-  <head>
-    <meta
-      name="generator"
-      content="HTML Tidy for HTML5 for Linux version 5.6.0"
-    />
-    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
-    <title>LangGraph RAG Web</title>
-    <link rel="stylesheet" href="/static/style.css" />
-  </head>
-  <body>
-    <h1>LangGraph RAG Web Demo</h1>
-    <form id="rag-form" name="rag-form">
-      <input
-        type="text"
-        id="question"
-        placeholder="질문을 입력하세요"
-        required=""
-        style="width: 300px"
-      />
-      <button type="submit">질문하기</button>
-    </form>
-    <div id="result" style="margin-top: 20px"></div>
-    <hr style="margin: 40px 0" />
-    <h2>PDF 업로드</h2>
-    <form id="upload-form" enctype="multipart/form-data" name="upload-form">
-      <input
-        type="file"
-        id="pdf-file"
-        name="file"
-        accept="application/pdf"
-        required=""
-      />
-      <button type="submit">업로드</button>
-    </form>
-    <div id="upload-result" style="margin-top: 20px"></div>
-    <h3>업로드된 PDF 목록</h3>
-    <ul id="pdf-list"></ul>
-    <script>
+<head>
+  <meta name="generator" content="HTML Tidy for HTML5 for Linux version 5.6.0">
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+  <title>LangGraph RAG Web</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <h1>LangGraph RAG Web Demo</h1>
+  <form id="rag-form" name="rag-form">
+    <input type="text" id="question" placeholder="질문을 입력하세요" required="" style="width: 300px"> <button type="submit">질문하기</button>
+  </form>
+  <div id="result" style="margin-top: 20px"></div>
+  <hr style="margin: 40px 0">
+  <h2>PDF 업로드</h2>
+  <form id="upload-form" enctype="multipart/form-data" name="upload-form">
+    <input type="file" id="pdf-file" name="file" accept="application/pdf" required=""> <button type="submit">업로드</button>
+  </form>
+  <div id="upload-result" style="margin-top: 20px"></div>
+  <h3>업로드된 PDF 목록</h3>
+  <ul id="pdf-list"></ul>
+  <script>
       async function fetchPdfList() {
         const res = await fetch("/pdf_list");
         const data = await res.json();
@@ -53,7 +36,10 @@
             btn.textContent = "삭제";
             btn.onclick = async function () {
               if (!confirm(pdf + " 파일을 삭제하시겠습니까?")) return;
-              const res = await fetch(`/delete_pdf?filename=${encodeURIComponent(pdf)}`, { method: "POST" });
+              const res = await fetch(
+                `/delete_pdf?filename=${encodeURIComponent(pdf)}`,
+                { method: "POST" },
+              );
               const result = await res.json();
               alert(result.result);
               fetchPdfList();
@@ -97,15 +83,15 @@
             `${data.filename} 업로드 완료: ${data.result}`;
           // 업로드 후 input[type=file] 값 비우기
           fileInput.value = "";
-          // 업로드 결과 메시지 2초 후 자동 삭제
+          // 업로드 결과 메시지 5초 후 자동 삭제
           setTimeout(() => {
             document.getElementById("upload-result").innerText = "";
-          }, 2000);
+          }, 5000);
           fetchPdfList();
         });
 
       // 페이지 로드 시 PDF 목록 표시
       fetchPdfList();
-    </script>
-  </body>
+  </script>
+</body>
 </html>
