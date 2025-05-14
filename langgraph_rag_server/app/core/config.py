@@ -48,5 +48,6 @@ def clear_directories():
             print(f"폴더가 존재하지 않습니다: {folder}")
 
 # OLLAMA 관련 환경변수
-OLLAMA_MODEL = os.getenv("OLLAMA_MODEL")
+OLLAMA_LLM_MODEL = os.getenv("OLLAMA_LLM_MODEL")
+OLLAMA_EMBEDDING_MODEL = os.getenv("OLLAMA_EMBEDDING_MODEL")
 OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL")

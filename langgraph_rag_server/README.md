@@ -131,11 +131,23 @@ PYTHONPATH=. pytest tests/
 - 프로젝트 루트에 `.env` 파일을 생성하고 아래와 같이 작성하세요:
 
 ```env
-# Ollama에서 사용할 LLM 모델명 (예: mistral, qwen3:30b-a3b 등)
-OLLAMA_MODEL=mistral
+# Ollama에서 사용할 LLM(질의응답) 모델명 (예: qwen3:30b-a3b)
+OLLAMA_LLM_MODEL=qwen3:30b-a3b
+# Ollama에서 사용할 임베딩 모델명 (예: nomic-embed-text)
+OLLAMA_EMBEDDING_MODEL=nomic-embed-text
+# Ollama 서버 주소 (기본값: http://localhost:11434)
+OLLAMA_BASE_URL=http://localhost:11434
 ```
 
 - 샘플 파일: `.env.sample` 참고
+
+- **임베딩 모델 추천:**
+    - nomic-embed-text (빠르고 RAG에 최적화, Ollama 공식 지원)
+    - mxbai-embed-large (더 높은 품질이 필요할 때)
+    - all-minilm (가볍고 빠른 임베딩)
+- **LLM 모델 추천:**
+    - qwen3:30b-a3b (고성능, 한국어 지원, RAG에 적합)
+    - 필요에 따라 qwen3:8b, mistral 등도 사용 가능
 
 ---
 

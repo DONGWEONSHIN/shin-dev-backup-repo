@@ -3,7 +3,7 @@
 import os
 import shutil
 
-from app.core.config import CHROMA_PERSIST_DIR, OLLAMA_BASE_URL, OLLAMA_MODEL
+from app.core.config import CHROMA_PERSIST_DIR, OLLAMA_BASE_URL, OLLAMA_EMBEDDING_MODEL
 from langchain_chroma import Chroma
 from langchain_community.document_loaders import PyPDFLoader
 from langchain_ollama import OllamaEmbeddings
@@ -12,11 +12,11 @@ from langchain_text_splitters import RecursiveCharacterTextSplitter
 
 def ingest_documents(documents_dir: str | None = None) -> str:
     """PDF 문서를 임베딩하고 벡터스토어에 저장합니다."""
-    if not OLLAMA_MODEL:
-        return "OLLAMA_MODEL 환경변수가 설정되어 있지 않습니다."
+    if not OLLAMA_EMBEDDING_MODEL:
+        return "OLLAMA_EMBEDDING_MODEL 환경변수가 설정되어 있지 않습니다."
 
     # 임베딩 및 벡터스토어 초기화
-    embeddings = OllamaEmbeddings(model=OLLAMA_MODEL, base_url=OLLAMA_BASE_URL)
+    embeddings = OllamaEmbeddings(model=OLLAMA_EMBEDDING_MODEL, base_url=OLLAMA_BASE_URL)
     text_splitter = RecursiveCharacterTextSplitter(
         chunk_size=500,
         chunk_overlap=100,

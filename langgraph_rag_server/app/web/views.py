@@ -6,7 +6,7 @@ from app.core.config import (
     CHROMA_PERSIST_DIR,
     DOCUMENTS_DIR,
     OLLAMA_BASE_URL,
-    OLLAMA_MODEL,
+    OLLAMA_EMBEDDING_MODEL,
     TEMPLATES_DIR,
 )
 from app.core.document_ingest import ingest_documents
@@ -64,11 +64,15 @@ def delete_pdf(filename: str):
     os.remove(file_path)
 
     # 2. ChromaDB에서 해당 문서 벡터 삭제
-    if OLLAMA_MODEL is None:
+    if OLLAMA_EMBEDDING_MODEL is None:
         raise HTTPException(
-            status_code=500, detail="OLLAMA_MODEL 환경변수가 설정되어 있지 않습니다."
+            status_code=500,
+            detail="OLLAMA_EMBEDDING_MODEL 환경변수가 설정되어 있지 않습니다."
         )
-    embeddings = OllamaEmbeddings(model=OLLAMA_MODEL, base_url=OLLAMA_BASE_URL)
+    embeddings = OllamaEmbeddings(
+        model=OLLAMA_EMBEDDING_MODEL,
+        base_url=OLLAMA_BASE_URL
+    )
     vectorstore = Chroma(
         collection_name="rag_docs",
         embedding_function=embeddings,

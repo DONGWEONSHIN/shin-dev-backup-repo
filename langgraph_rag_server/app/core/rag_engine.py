@@ -1,15 +1,17 @@
 """RAG 질의응답 엔진을 제공하는 모듈입니다."""
 
-from app.core.config import CHROMA_PERSIST_DIR, OLLAMA_BASE_URL, OLLAMA_MODEL
+from app.core.config import CHROMA_PERSIST_DIR, OLLAMA_BASE_URL, OLLAMA_LLM_MODEL, OLLAMA_EMBEDDING_MODEL
 from chromadb.errors import InvalidCollectionException
 from langchain_chroma import Chroma
 from langchain_ollama import ChatOllama, OllamaEmbeddings
 
-if OLLAMA_MODEL is None:
-    raise ValueError("OLLAMA_MODEL 환경변수가 설정되어 있지 않습니다.")
+if OLLAMA_LLM_MODEL is None:
+    raise ValueError("OLLAMA_LLM_MODEL 환경변수가 설정되어 있지 않습니다.")
+if OLLAMA_EMBEDDING_MODEL is None:
+    raise ValueError("OLLAMA_EMBEDDING_MODEL 환경변수가 설정되어 있지 않습니다.")
 
 llm = ChatOllama(
-    model=OLLAMA_MODEL,
+    model=OLLAMA_LLM_MODEL,
     base_url=OLLAMA_BASE_URL,
     temperature=0,
     system=(
@@ -18,7 +20,7 @@ llm = ChatOllama(
     ),
 )
 embeddings = OllamaEmbeddings(
-    model=OLLAMA_MODEL,
+    model=OLLAMA_EMBEDDING_MODEL,
     base_url=OLLAMA_BASE_URL,
 )
 
