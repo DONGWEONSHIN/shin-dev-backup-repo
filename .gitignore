@@ -3,8 +3,6 @@ fine_tune/data/
 fine_tune/models/
 fine_tune/wandb/
 
-game/
-
 llm/finetuned_model
 llm/results
 
@@ -13,5 +11,10 @@ people_detector/*.pt
 
 speech_to_text_project/__pycache__/
 speech_to_text_project/temp/
+speech_to_text_project/v2/
 speech_to_text_project/.env
+
+
+stt_project/
+stt_project_back/
 
