@@ -2,7 +2,7 @@
 
 from contextlib import asynccontextmanager
 
-from app.api.v1 import rag
+from app.api.v1 import auth, rag
 from app.core.config import (
     STATIC_DIR,
     TEMPLATES_DIR,
@@ -41,5 +41,6 @@ app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 templates = Jinja2Templates(directory=TEMPLATES_DIR)
 
 # 라우터 등록
-app.include_router(rag.router, prefix="/api/v1/rag")
+app.include_router(auth.router, prefix="/api/v1/auth", tags=["auth"])
+app.include_router(rag.router, prefix="/api/v1/rag", tags=["rag"])
 app.include_router(views.router)

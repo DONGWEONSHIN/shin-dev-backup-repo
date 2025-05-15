@@ -1,6 +1,11 @@
 """RAG 질의응답 엔진을 제공하는 모듈입니다."""
 
-from app.core.config import CHROMA_PERSIST_DIR, OLLAMA_BASE_URL, OLLAMA_LLM_MODEL, OLLAMA_EMBEDDING_MODEL
+from app.core.config import (
+    CHROMA_PERSIST_DIR,
+    OLLAMA_BASE_URL,
+    OLLAMA_LLM_MODEL,
+    OLLAMA_EMBEDDING_MODEL,
+)
 from chromadb.errors import InvalidCollectionException
 from langchain_chroma import Chroma
 from langchain_ollama import ChatOllama, OllamaEmbeddings
@@ -25,10 +30,16 @@ embeddings = OllamaEmbeddings(
 )
 
 
-def answer(question: str) -> dict:
+def get_user_collection_name(user_id: str) -> str:
+    """사용자별 컬렉션 이름을 반환합니다."""
+    return f"rag_docs_{user_id}"
+
+
+def answer(question: str, user_id: str) -> dict:
     """질문에 대해 RAG 기반 답변과 출처를 반환합니다."""
+    collection_name = get_user_collection_name(user_id)
     vectorstore = Chroma(
-        collection_name="rag_docs",
+        collection_name=collection_name,
         embedding_function=embeddings,
         persist_directory=CHROMA_PERSIST_DIR,
     )
@@ -75,5 +86,3 @@ def answer(question: str) -> dict:
     if source_lines:
         answer_text += "\n\n[참고 문서]\n" + "\n".join(source_lines)
     return {"answer": answer_text, "sources": sources}
-
-

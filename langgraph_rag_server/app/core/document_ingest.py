@@ -2,6 +2,7 @@
 
 import os
 import shutil
+from typing import Optional
 
 from app.core.config import CHROMA_PERSIST_DIR, OLLAMA_BASE_URL, OLLAMA_EMBEDDING_MODEL
 from langchain_chroma import Chroma
@@ -10,13 +11,21 @@ from langchain_ollama import OllamaEmbeddings
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 
 
-def ingest_documents(documents_dir: str | None = None) -> str:
+def get_user_collection_name(user_id: str) -> str:
+    """사용자별 컬렉션 이름을 반환합니다."""
+    return f"rag_docs_{user_id}"
+
+
+def ingest_documents(documents_dir: str, user_id: Optional[str] = None) -> str:
     """PDF 문서를 임베딩하고 벡터스토어에 저장합니다."""
     if not OLLAMA_EMBEDDING_MODEL:
         return "OLLAMA_EMBEDDING_MODEL 환경변수가 설정되어 있지 않습니다."
+    print(f"OLLAMA_EMBEDDING_MODEL: {OLLAMA_EMBEDDING_MODEL}")
 
     # 임베딩 및 벡터스토어 초기화
-    embeddings = OllamaEmbeddings(model=OLLAMA_EMBEDDING_MODEL, base_url=OLLAMA_BASE_URL)
+    embeddings = OllamaEmbeddings(
+        model=OLLAMA_EMBEDDING_MODEL, base_url=OLLAMA_BASE_URL
+    )
     text_splitter = RecursiveCharacterTextSplitter(
         chunk_size=500,
         chunk_overlap=100,
@@ -47,6 +56,8 @@ def ingest_documents(documents_dir: str | None = None) -> str:
                 doc.metadata["filename"] = os.path.basename(file_path)
                 doc.metadata["char_count"] = len(doc.page_content)
                 doc.metadata["word_count"] = len(doc.page_content.split())
+                if user_id:
+                    doc.metadata["user_id"] = user_id
                 enhanced_docs.append(doc)
             splits = text_splitter.split_documents(enhanced_docs)
             all_splits.extend(splits)
@@ -57,14 +68,15 @@ def ingest_documents(documents_dir: str | None = None) -> str:
         return "유효한 문서 내용이 추출되지 않았습니다."
 
     # 벡터스토어 초기화 및 저장
+    collection_name = get_user_collection_name(user_id) if user_id else "rag_docs"
     vectorstore = Chroma(
-        collection_name="rag_docs",
+        collection_name=collection_name,
         embedding_function=embeddings,
         persist_directory=CHROMA_PERSIST_DIR,
     )
     vectorstore.delete_collection()
     vectorstore = Chroma(
-        collection_name="rag_docs",
+        collection_name=collection_name,
         embedding_function=embeddings,
         persist_directory=CHROMA_PERSIST_DIR,
     )
@@ -75,7 +87,7 @@ def ingest_documents(documents_dir: str | None = None) -> str:
     return f"총 {len(all_splits)}개의 문서 청크가 벡터스토어에 저장되었습니다."
 
 
-def delete_related_chroma_files(filename: str):
+def delete_related_chroma_files(filename: str, user_id: Optional[str] = None):
     """ChromaDB 데이터 폴더에서 filename 관련 벡터 파일 삭제."""
     for folder in os.listdir(CHROMA_PERSIST_DIR):
         folder_path = os.path.join(CHROMA_PERSIST_DIR, folder)
@@ -85,7 +97,10 @@ def delete_related_chroma_files(filename: str):
             if os.path.exists(metadata_file):
                 with open(metadata_file, "r") as f:
                     content = f.read()
-                    if filename in content:
+                    # 사용자 ID와 파일명이 모두 일치하는 경우에만 삭제
+                    if filename in content and (
+                        not user_id or f'"user_id": "{user_id}"' in content
+                    ):
                         # 관련 UUID 폴더 삭제
                         shutil.rmtree(folder_path)
                         print(f"✅ {folder_path} 관련 데이터 삭제 완료")
