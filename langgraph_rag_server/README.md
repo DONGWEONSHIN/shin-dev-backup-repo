@@ -1,5 +1,109 @@
 # LangGraph RAG Server
 
+## 주요 기능
+
+1. **PDF 기반 질의응답 (RAG)**
+   - PDF 문서를 업로드하고 질문하면 문서 내용을 기반으로 답변 생성
+   - 답변과 함께 참고한 문서의 출처(근거) 제공
+
+2. **멀티유저 지원**
+   - 사용자별 계정 및 데이터 분리
+   - JWT 기반 인증 시스템
+   - 각 사용자마다 독립적인 문서 저장소와 벡터 데이터베이스
+
+## 사용 방법
+
+### 1. 웹 인터페이스 사용 방법
+
+1. 회원가입 및 로그인
+   - 브라우저에서 [http://localhost:8100/register](http://localhost:8100/register) 접속
+   - 이메일과 비밀번호를 입력하여 계정 생성
+   - 로그인 페이지([http://localhost:8100/login](http://localhost:8100/login))에서 계정 로그인
+
+2. PDF 업로드
+   - 메인 페이지에서 PDF 파일을 선택하고 업로드
+   - 업로드된 PDF는 자동으로 벡터스토어에 인덱싱됨
+
+3. 질문 및 답변
+   - 메인 페이지에서 질문 입력 후 전송
+   - 시스템이 문서 내용을 기반으로 답변 생성
+   - 답변 하단에 참고한 문서 출처가 표시됨
+
+4. PDF 관리
+   - 업로드된 PDF 목록 확인 및 불필요한 PDF 삭제 가능
+   - 각 사용자는 최대 10개의 PDF 업로드 가능
+
+### 2. API 사용 방법
+
+1. 인증 토큰 발급
+   ```bash
+   # 로그인하여 토큰 발급
+   curl -X POST http://localhost:8100/api/v1/auth/token \
+     -d "username=your-email@example.com&password=your-password" \
+     -H "Content-Type: application/x-www-form-urlencoded"
+   ```
+   응답 예시:
+   ```json
+   {
+     "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+     "token_type": "bearer"
+   }
+   ```
+
+2. PDF 목록 조회
+   ```bash
+   curl -X GET http://localhost:8100/pdf_list \
+     -H "Authorization: Bearer YOUR_ACCESS_TOKEN"
+   ```
+
+3. PDF 업로드
+   ```bash
+   curl -X POST http://localhost:8100/upload \
+     -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
+     -F "file=@/path/to/your/document.pdf"
+   ```
+
+4. 질의응답 API
+   ```bash
+   curl -X POST http://localhost:8100/api/v1/rag/query \
+     -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
+     -H "Content-Type: application/json" \
+     -d '{"question": "여기에 질문을 입력하세요"}'
+   ```
+   응답 예시:
+   ```json
+   {
+     "answer": "질문에 대한 답변 내용...\n\n[참고 문서]\n- document.pdf (페이지: 3, 관련도: 높음)",
+     "sources": [
+       {
+         "filename": "document.pdf",
+         "source": "/path/to/document.pdf",
+         "page": 3,
+         "score": 0.89,
+         "preview": "문서 내용 미리보기..."
+       }
+     ]
+   }
+   ```
+
+5. PDF 삭제
+   ```bash
+   curl -X POST http://localhost:8100/delete_pdf \
+     -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
+     --data-urlencode "filename=document.pdf"
+   ```
+
+## 멀티유저 시스템 아키텍처
+
+- **사용자 인증**: JWT 토큰 기반 (access_token)
+- **사용자 데이터 분리**:
+  - 각 사용자별 독립적인 문서 저장 디렉토리 (`data/documents/{user_id}/`)
+  - 사용자별 벡터스토어 컬렉션 (`rag_docs_{user_id}`)
+- **보안**:
+  - 토큰 검증을 통한 인증 체크
+  - 사용자별 데이터 접근 제한
+  - 웹 인터페이스에서는 HTTP-only 쿠키 사용
+
 ## 실행 방법
 
 1. (최초 1회) Conda 환경 생성 및 활성화:
@@ -29,11 +133,16 @@ langgraph_rag_server/
 │   ├── web/views.py           # 웹 라우터 및 PDF 관리
 │   ├── core/document_ingest.py# PDF 임베딩 및 벡터스토어 저장
 │   ├── core/rag_engine.py     # RAG 질의응답 엔진
+│   ├── core/auth.py           # 인증 관련 유틸리티
+│   ├── core/models.py         # 사용자 및 인증 관련 모델
 │   ├── api/v1/rag.py          # RAG API 엔드포인트
+│   ├── api/v1/auth.py         # 인증 API 엔드포인트
 │   ├── templates/index.html   # 웹 UI 템플릿
+│   ├── templates/login.html   # 로그인 페이지
+│   ├── templates/register.html# 회원가입 페이지
 │   └── ...                    # 기타 설정/정적파일
 ├── data/
-│   ├── documents/             # 업로드된 PDF 저장 폴더
+│   ├── documents/             # 업로드된 PDF 저장 폴더 (사용자별 하위 폴더)
 │   └── chroma_db/             # ChromaDB 벡터스토어 데이터
 ├── tests/
 │   └── test_api.py            # 주요 기능 테스트 코드
@@ -45,31 +154,67 @@ langgraph_rag_server/
 
 ## 시스템 흐름 및 주요 기능
 
-1. **PDF 업로드 및 인덱싱**
+1. **사용자 인증**
+   - 회원가입을 통해 사용자 계정 생성
+   - 로그인하여 JWT 토큰 발급 및 인증
+   - 인증된 사용자만 서비스 이용 가능
+
+2. **PDF 업로드 및 인덱싱**
    - 웹 UI 또는 `/upload` 엔드포인트로 PDF 업로드
-   - 업로드된 문서는 자동으로 벡터스토어(ChromaDB)에 인덱싱
-2. **질의응답 (RAG)**
+   - 업로드된 문서는 사용자별 폴더에 저장
+   - 문서는 자동으로 사용자별 벡터스토어(ChromaDB)에 인덱싱
+
+3. **질의응답 (RAG)**
    - 웹 UI 또는 `/api/v1/rag/query`(POST)로 질문 전송
-   - 시스템은 문서에서 관련 내용을 검색 후, LLM이 답변 생성
+   - 시스템은 사용자의 문서에서 관련 내용을 검색 후, LLM이 답변 생성
    - 답변과 함께 실제로 사용된 문서의 출처(근거)가 반환됨
+
+4. **데이터 분리 및 보안**
+   - 각 사용자는 자신의 문서만 접근 가능
+   - 사용자별 독립적인 저장 공간과 벡터스토어 컬렉션
+   - 한 사용자가 업로드한 문서는 다른 사용자의 검색 결과에 포함되지 않음
 
 ---
 
 ## 웹 UI 사용법
 
-- 브라우저에서 `/` 접속
-- 질문 입력 → 답변 및 출처 확인
-- PDF 업로드 → 자동 인덱싱
-- PDF 목록/삭제 가능
+1. **회원가입 및 로그인**
+   - `/register` 페이지에서 이메일과 비밀번호로 회원가입
+   - `/login` 페이지에서 로그인
+   - 로그인하면 메인 페이지로 자동 이동
+
+2. **메인 화면**
+   - 질문 입력 → 답변 및 출처 확인
+   - PDF 업로드 → 자동 인덱싱
+   - PDF 목록/삭제 기능
+
+3. **PDF 관리**
+   - 각 사용자는 최대 10개까지 PDF 업로드 가능
+   - 자신이 업로드한 PDF만 볼 수 있음
+   - 불필요한 PDF는 삭제 가능
+
+4. **로그아웃**
+   - 상단 로그아웃 버튼으로 세션 종료
 
 ---
 
 ## API 상세
 
-- `/upload` (POST, multipart/form-data): PDF 업로드 및 인덱싱
-- `/delete_pdf` (POST): PDF 및 벡터 삭제
-- `/pdf_list` (GET): 업로드된 PDF 목록 반환
-- `/api/v1/rag/query` (POST, JSON): 질의응답 API
+### 인증 API
+- `/api/v1/auth/token` (POST): 로그인 및 토큰 발급
+- `/api/v1/auth/register` (POST): 사용자 등록
+
+### PDF 관리 API
+- `/upload` (POST, multipart/form-data): PDF 업로드 및 인덱싱 (인증 필요)
+- `/delete_pdf` (POST): PDF 및 벡터 삭제 (인증 필요)
+- `/pdf_list` (GET): 업로드된 PDF 목록 반환 (인증 필요)
+
+### RAG API
+- `/api/v1/rag/query` (POST, JSON): 질의응답 API (인증 필요)
+
+### API 인증 방법
+- 모든 API 호출 시 `Authorization: Bearer {token}` 헤더 필요
+- 토큰은 `/api/v1/auth/token` 엔드포인트에서 발급
 
 ### RAG API 반환 예시
 ```json
