@@ -50,6 +50,7 @@ async def upload_pdf(file: UploadFile = File(...)):
         f.write(await file.read())
     # 업로드 후 자동 문서 처리
     result = ingest_documents(DOCUMENTS_DIR)
+    print(f"result: {result}")
     return JSONResponse({"result": result, "filename": file.filename})
 
 
@@ -67,11 +68,10 @@ def delete_pdf(filename: str):
     if OLLAMA_EMBEDDING_MODEL is None:
         raise HTTPException(
             status_code=500,
-            detail="OLLAMA_EMBEDDING_MODEL 환경변수가 설정되어 있지 않습니다."
+            detail="OLLAMA_EMBEDDING_MODEL 환경변수가 설정되어 있지 않습니다.",
         )
     embeddings = OllamaEmbeddings(
-        model=OLLAMA_EMBEDDING_MODEL,
-        base_url=OLLAMA_BASE_URL
+        model=OLLAMA_EMBEDDING_MODEL, base_url=OLLAMA_BASE_URL
     )
     vectorstore = Chroma(
         collection_name="rag_docs",
