@@ -35,7 +35,25 @@
 
 ### 2. API 사용 방법
 
-1. 인증 토큰 발급
+1. 사용자 등록 (회원가입)
+   ```bash
+   curl -X POST http://localhost:8100/api/v1/auth/register \
+     -H "Content-Type: application/json" \
+     -d '{"email": "your-email@example.com", "password": "your-password"}'
+   ```
+   응답 예시:
+   ```json
+   {
+     "id": "1",
+     "email": "your-email@example.com",
+     "hashed_password": "hashed-password-string",
+     "is_active": true,
+     "created_at": "2023-06-15T12:34:56.789012",
+     "updated_at": "2023-06-15T12:34:56.789012"
+   }
+   ```
+
+2. 인증 토큰 발급 (로그인)
    ```bash
    # 로그인하여 토큰 발급
    curl -X POST http://localhost:8100/api/v1/auth/token \
@@ -50,20 +68,20 @@
    }
    ```
 
-2. PDF 목록 조회
+3. PDF 목록 조회
    ```bash
    curl -X GET http://localhost:8100/pdf_list \
      -H "Authorization: Bearer YOUR_ACCESS_TOKEN"
    ```
 
-3. PDF 업로드
+4. PDF 업로드
    ```bash
    curl -X POST http://localhost:8100/upload \
      -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
      -F "file=@/path/to/your/document.pdf"
    ```
 
-4. 질의응답 API
+5. 질의응답 API
    ```bash
    curl -X POST http://localhost:8100/api/v1/rag/query \
      -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
@@ -86,11 +104,20 @@
    }
    ```
 
-5. PDF 삭제
+6. PDF 삭제 (두 가지 방법)
+   
+   방법 1: 쿼리 파라미터 사용 (권장)
+   ```bash
+   curl -X POST "http://localhost:8100/delete_pdf?filename=document.pdf" \
+     -H "Authorization: Bearer YOUR_ACCESS_TOKEN"
+   ```
+   
+   방법 2: 폼 데이터 사용
    ```bash
    curl -X POST http://localhost:8100/delete_pdf \
      -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
-     --data-urlencode "filename=document.pdf"
+     -H "Content-Type: application/x-www-form-urlencoded" \
+     -d "filename=document.pdf"
    ```
 
 ## 멀티유저 시스템 아키텍처
@@ -201,8 +228,14 @@ langgraph_rag_server/
 ## API 상세
 
 ### 인증 API
-- `/api/v1/auth/token` (POST): 로그인 및 토큰 발급
-- `/api/v1/auth/register` (POST): 사용자 등록
+- `/api/v1/auth/register` (POST, JSON): 새 사용자 등록
+  - 요청 형식: `{"email": "user@example.com", "password": "password123"}`
+  - 응답: 생성된 사용자 정보 (id, email, hashed_password 등)
+
+- `/api/v1/auth/token` (POST, form-data): 로그인 및 토큰 발급
+  - 요청 형식: `username=user@example.com&password=password123`
+  - 응답: `{"access_token": "토큰값", "token_type": "bearer"}`
+  - 참고: username 필드에 이메일 주소를 사용합니다
 
 ### PDF 관리 API
 - `/upload` (POST, multipart/form-data): PDF 업로드 및 인덱싱 (인증 필요)
