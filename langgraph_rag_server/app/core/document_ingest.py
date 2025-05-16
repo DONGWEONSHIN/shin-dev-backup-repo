@@ -27,10 +27,10 @@ def ingest_documents(documents_dir: str, user_id: Optional[str] = None) -> str:
         model=OLLAMA_EMBEDDING_MODEL, base_url=OLLAMA_BASE_URL
     )
     text_splitter = RecursiveCharacterTextSplitter(
-        chunk_size=500,
-        chunk_overlap=100,
+        chunk_size=1000,
+        chunk_overlap=200,
         length_function=len,
-        separators=["\n\n", "\n", ".", "!", "?", ",", " ", ""],
+        separators=["\n\n", "\n", ".", "!", "?", ":", ";", ",", " ", ""],
     )
     # PDF 파일 수집
     pdf_files = []
