@@ -44,7 +44,16 @@ def answer(question: str, user_id: str) -> dict:
         persist_directory=CHROMA_PERSIST_DIR,
     )
     try:
-        search_results = vectorstore.similarity_search_with_score(question, k=5)
+        search_results = vectorstore.similarity_search_with_score(question, k=8)
+        print("\n=== 검색된 문서 청크 ===")
+        for idx, (doc, score) in enumerate(search_results):
+            print(f"\n[청크 {idx+1}] (유사도 점수: {score:.4f})")
+            print(f"파일: {doc.metadata.get('filename', 'unknown')}")
+            print(f"페이지: {doc.metadata.get('page', 'unknown')}")
+            print("내용:")
+            print("-" * 80)
+            print(doc.page_content)
+            print("-" * 80)
     except InvalidCollectionException:
         return {
             "answer": (
