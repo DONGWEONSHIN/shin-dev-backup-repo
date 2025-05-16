@@ -148,6 +148,9 @@ uvicorn app.main:app --reload --host 0.0.0.0 --port 8100
 - API: `/api/v1/rag/query` (POST, JSON: {"question": "..."})
 
 3. Ollama 서버가 반드시 실행 중이어야 합니다 (백엔드 LLM 사용 시)
+```bash
+OLLAMA_HOST=0.0.0.0 ollama serve
+```
 
 ---
 
