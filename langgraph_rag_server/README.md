@@ -136,7 +136,7 @@
 1. (최초 1회) Conda 환경 생성 및 활성화:
 ```bash
 conda env create -f env.yml
-conda activate langgraph_rag_server_venv
+conda activate langrag_venv
 ```
 
 2. FastAPI 서버 실행 (uvicorn 사용):
