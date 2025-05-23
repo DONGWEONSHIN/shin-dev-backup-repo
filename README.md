@@ -45,6 +45,7 @@ pip install -r requirements.txt
 | 14 | real_estate_project | 서울 아파트 부동산 예측 | XGBoost, SHAP, 지도 시각화 |
 | 15 | langgraph_project | LangGraph 기반 PDF RAG 시스템 | LangGraph, LangChain, ChromaDB |
 | 16 | langgraph_rag_server | LangGraph RAG 웹 서버 | FastAPI, LangGraph, ChromaDB |
+| 17 | langgraph_rag_server_uv | LangGraph RAG UV 서버 | FastAPI, LangGraph, ChromaDB |
 
 ---
 
@@ -236,6 +237,19 @@ cd langgraph_rag_server
 conda env create -f env.yml
 conda activate langgraph_rag_server_venv
 uvicorn app.main:app --reload --host 0.0.0.0 --port 8100
+```
+
+### 17. `langgraph_rag_server_uv`
+- **설명**: LangGraph 기반 RAG 시스템의 UV 서버 구현 프로젝트입니다.
+- **주요 특징**:
+  - UV 기반 고성능 웹 서버
+  - LangGraph RAG 시스템 통합
+  - 비동기 처리 지원
+```bash
+cd langgraph_rag_server_uv
+conda env create -f env.yml
+conda activate langgraph_rag_server_uv_venv
+uvicorn app.main:app --reload --host 0.0.0.0 --port 8200
 ```
 
 ---
