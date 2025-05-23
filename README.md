@@ -247,8 +247,9 @@ uvicorn app.main:app --reload --host 0.0.0.0 --port 8100
   - 비동기 처리 지원
 ```bash
 cd langgraph_rag_server_uv
-conda env create -f env.yml
-conda activate langgraph_rag_server_uv_venv
+uv venv
+source .venv/bin/activate  # Windows: .venv\Scripts\activate
+uv pip install -r requirements.txt
 uvicorn app.main:app --reload --host 0.0.0.0 --port 8200
 ```
 
