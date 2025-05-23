@@ -11,6 +11,8 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")
 from app.core.auth import create_new_user
 from app.core.config import ensure_directories
 from app.main import app
+from app.core.database import SessionLocal
+from app.core.models import UserDB
 from fastapi.testclient import TestClient
 from reportlab.lib.pagesizes import letter
 from reportlab.pdfbase import pdfmetrics
@@ -60,13 +62,34 @@ def setup_module(module):
                 if os.path.isfile(file_path):
                     os.remove(file_path)
 
-    # 테스트 사용자 2명 생성
+    # 데이터베이스 세션 생성
+    db = SessionLocal()
     try:
-        create_new_user("user1@example.com", "password123")
-        create_new_user("user2@example.com", "password456")
-    except Exception:
-        # 이미 생성된 사용자라면 무시
-        pass
+        # 테스트 사용자 2명 생성
+        create_new_user(db, "user1@example.com", "password123")
+        create_new_user(db, "user2@example.com", "password456")
+    except Exception as e:
+        print(f"사용자 생성 중 오류 발생: {e}")
+    finally:
+        db.close()
+
+
+def teardown_module(module):
+    """테스트 후 정리 작업을 수행합니다."""
+    # 데이터베이스 세션 생성
+    db = SessionLocal()
+    try:
+        # 테스트 사용자 삭제
+        test_users = ["user1@example.com", "user2@example.com", "test_user@example.com"]
+        for email in test_users:
+            user = db.query(UserDB).filter(UserDB.email == email).first()
+            if user:
+                db.delete(user)
+        db.commit()
+    except Exception as e:
+        print(f"테스트 사용자 삭제 중 오류 발생: {e}")
+    finally:
+        db.close()
 
 
 # 로그인 유틸리티 함수

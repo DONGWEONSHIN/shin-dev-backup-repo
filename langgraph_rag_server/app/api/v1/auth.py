@@ -4,6 +4,7 @@ from datetime import timedelta
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
+from sqlalchemy.orm import Session
 
 from app.core.auth import (
     ACCESS_TOKEN_EXPIRE_MINUTES,
@@ -11,6 +12,7 @@ from app.core.auth import (
     create_access_token,
     create_new_user,
 )
+from app.core.database import get_db
 from app.core.models import Token, User, UserCreate
 
 router = APIRouter()
@@ -19,9 +21,10 @@ router = APIRouter()
 @router.post("/token", response_model=Token)
 async def login_for_access_token(
     form_data: OAuth2PasswordRequestForm = Depends(),
+    db: Session = Depends(get_db),
 ) -> dict:
     """로그인하여 액세스 토큰을 발급받습니다."""
-    user = authenticate_user(form_data.username, form_data.password)
+    user = authenticate_user(db, form_data.username, form_data.password)
     if not user:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -36,6 +39,9 @@ async def login_for_access_token(
 
 
 @router.post("/register", response_model=User)
-async def register_user(user_data: UserCreate) -> User:
+async def register_user(
+    user_data: UserCreate,
+    db: Session = Depends(get_db),
+) -> User:
     """새로운 사용자를 등록합니다."""
-    return create_new_user(user_data.email, user_data.password)
+    return create_new_user(db, user_data.email, user_data.password)

@@ -1,5 +1,15 @@
 # LangGraph RAG Server
 
+## 기술 스택
+
+- **백엔드**: FastAPI 0.115.9
+- **데이터베이스**: PostgreSQL + SQLAlchemy 1.4.23
+- **벡터 데이터베이스**: ChromaDB 0.6.3
+- **LLM/임베딩**: Ollama (qwen3:30b-a3b, nomic-embed-text)
+- **인증**: JWT + bcrypt
+- **문서 처리**: PyPDF 5.4.0
+- **테스트**: pytest 8.3.5
+
 ## 주요 기능
 
 1. **PDF 기반 질의응답 (RAG)**
@@ -11,14 +21,149 @@
    - JWT 기반 인증 시스템
    - 각 사용자마다 독립적인 문서 저장소와 벡터 데이터베이스
 
+## 설치 및 실행 방법
+
+### 1. 필수 요구사항
+- Python 3.10
+- PostgreSQL
+- Ollama
+- Conda
+
+### 2. 환경 설정
+
+1. PostgreSQL 설치 및 설정
+```bash
+# Ubuntu/Debian
+sudo apt update
+sudo apt install postgresql postgresql-contrib
+
+# PostgreSQL 서비스 시작
+sudo service postgresql start
+
+# PostgreSQL 사용자 생성 및 데이터베이스 생성
+sudo -u postgres psql
+postgres=# CREATE USER your_username WITH PASSWORD 'your_password';
+postgres=# CREATE DATABASE your_database_name;
+postgres=# GRANT ALL PRIVILEGES ON DATABASE your_database_name TO your_username;
+postgres=# \q
+```
+
+2. 환경 변수 설정
+```bash
+# .env 파일 생성
+cp env.example .env
+
+# .env 파일 편집
+nano .env
+```
+
+3. Ollama 설치 및 모델 다운로드
+```bash
+# Ollama 설치 (Linux)
+curl https://ollama.ai/install.sh | sh
+
+# LLM 모델 설치
+ollama pull qwen3:30b-a3b
+
+# 임베딩 모델 설치
+ollama pull nomic-embed-text
+```
+
+### 3. 설치 및 실행 순서
+
+1. Conda 환경 생성 및 활성화
+```bash
+conda env create -f env.yml
+conda activate langrag_venv
+```
+
+2. 데이터베이스 마이그레이션 설정
+```bash
+# 1. 기존 alembic 디렉토리 삭제 (이미 존재하는 경우)
+rm -rf alembic
+
+# 2. alembic 초기화
+alembic init alembic
+
+# 3. alembic.ini 파일에서 sqlalchemy.url 수정
+# sqlalchemy.url = postgresql://your_username:your_password@localhost/your_database_name
+
+# 4. 마이그레이션 생성
+export PYTHONPATH=$PYTHONPATH:$(pwd)
+alembic revision --autogenerate -m "Create users table"
+
+# 5. 마이그레이션 적용
+alembic upgrade head
+```
+
+3. 서비스 실행
+```bash
+# 터미널 1: Ollama 서버 실행
+OLLAMA_HOST=0.0.0.0 ollama serve
+
+# 터미널 2: FastAPI 서버 실행
+uvicorn app.main:app --reload --host 0.0.0.0 --port 8100
+```
+
+4. 웹 인터페이스 접속
+- 브라우저에서 [http://localhost:8100](http://localhost:8100) 접속
+- 회원가입: [http://localhost:8100/register](http://localhost:8100/register)
+- 로그인: [http://localhost:8100/login](http://localhost:8100/login)
+
+### 4. 테스트 실행
+
+1. 단위 테스트 실행
+```bash
+pytest tests/
+```
+
+2. 특정 테스트 실행
+```bash
+# API 테스트만 실행
+pytest tests/test_api.py
+
+# 특정 테스트 함수만 실행
+pytest tests/test_api.py::test_function_name
+```
+
+3. 테스트 커버리지 확인
+```bash
+pytest --cov=app tests/
+```
+
+## 기술적 상세
+
+### 1. RAG 시스템 구성
+- **문서 처리**: PyPDF를 사용하여 PDF 문서를 텍스트로 변환
+- **청크 분할**: RecursiveCharacterTextSplitter를 사용하여 문서를 의미 있는 청크로 분할
+- **임베딩**: Ollama의 nomic-embed-text 모델을 사용하여 텍스트를 벡터로 변환
+- **벡터 저장**: ChromaDB를 사용하여 벡터를 저장하고 검색
+- **답변 생성**: Ollama의 qwen3:30b-a3b 모델을 사용하여 컨텍스트 기반 답변 생성
+
+### 2. 보안 구현
+- **비밀번호 해싱**: bcrypt를 사용하여 비밀번호를 안전하게 저장
+- **JWT 인증**: python-jose를 사용하여 JWT 토큰 생성 및 검증
+- **데이터 격리**: 사용자별 독립적인 문서 저장소와 벡터스토어 컬렉션
+
+### 3. 데이터베이스 스키마
+```sql
+CREATE TABLE users (
+    id VARCHAR PRIMARY KEY,
+    email VARCHAR UNIQUE NOT NULL,
+    hashed_password VARCHAR NOT NULL,
+    is_active BOOLEAN DEFAULT TRUE,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+```
+
 ## 사용 방법
 
 ### 1. 웹 인터페이스 사용 방법
 
 1. 회원가입 및 로그인
-   - 브라우저에서 [http://localhost:8100/register](http://localhost:8100/register) 접속
    - 이메일과 비밀번호를 입력하여 계정 생성
-   - 로그인 페이지([http://localhost:8100/login](http://localhost:8100/login))에서 계정 로그인
+   - 로그인 페이지에서 계정 로그인
 
 2. PDF 업로드
    - 메인 페이지에서 PDF 파일을 선택하고 업로드
@@ -131,28 +276,11 @@
   - 사용자별 데이터 접근 제한
   - 웹 인터페이스에서는 HTTP-only 쿠키 사용
 
-## 실행 방법
+## ChromaDB 폴더 정리(중요)
 
-1. (최초 1회) Conda 환경 생성 및 활성화:
-```bash
-conda env create -f env.yml
-conda activate langrag_venv
-```
-
-2. FastAPI 서버 실행 (uvicorn 사용):
-```bash
-uvicorn app.main:app --reload --host 0.0.0.0 --port 8100
-```
-- 브라우저에서 [http://localhost:8100](http://localhost:8100) 접속
-- 웹 UI: `/` (질문 입력 및 결과 확인)
-- API: `/api/v1/rag/query` (POST, JSON: {"question": "..."})
-
-3. Ollama 서버가 반드시 실행 중이어야 합니다 (백엔드 LLM 사용 시)
-```bash
-OLLAMA_HOST=0.0.0.0 ollama serve
-```
-
----
+- PDF/문서 삭제 시 `data/chroma_db` 하위 UUID 폴더는 **자동 삭제되지 않습니다** (ChromaDB 설계상 정상)
+- **컬렉션 전체 삭제** 또는 **DB 재빌드**로만 안전하게 정리 가능
+- 자세한 방법은 [Chroma Cookbook - Rebuilding Chroma DB](https://cookbook.chromadb.dev/strategies/rebuilding/) 참고
 
 ## 폴더/파일 구조
 
@@ -180,161 +308,8 @@ langgraph_rag_server/
 └── README.md
 ```
 
----
-
-## 시스템 흐름 및 주요 기능
-
-1. **사용자 인증**
-   - 회원가입을 통해 사용자 계정 생성
-   - 로그인하여 JWT 토큰 발급 및 인증
-   - 인증된 사용자만 서비스 이용 가능
-
-2. **PDF 업로드 및 인덱싱**
-   - 웹 UI 또는 `/upload` 엔드포인트로 PDF 업로드
-   - 업로드된 문서는 사용자별 폴더에 저장
-   - 문서는 자동으로 사용자별 벡터스토어(ChromaDB)에 인덱싱
-
-3. **질의응답 (RAG)**
-   - 웹 UI 또는 `/api/v1/rag/query`(POST)로 질문 전송
-   - 시스템은 사용자의 문서에서 관련 내용을 검색 후, LLM이 답변 생성
-   - 답변과 함께 실제로 사용된 문서의 출처(근거)가 반환됨
-
-4. **데이터 분리 및 보안**
-   - 각 사용자는 자신의 문서만 접근 가능
-   - 사용자별 독립적인 저장 공간과 벡터스토어 컬렉션
-   - 한 사용자가 업로드한 문서는 다른 사용자의 검색 결과에 포함되지 않음
-
----
-
-## 웹 UI 사용법
-
-1. **회원가입 및 로그인**
-   - `/register` 페이지에서 이메일과 비밀번호로 회원가입
-   - `/login` 페이지에서 로그인
-   - 로그인하면 메인 페이지로 자동 이동
-
-2. **메인 화면**
-   - 질문 입력 → 답변 및 출처 확인
-   - PDF 업로드 → 자동 인덱싱
-   - PDF 목록/삭제 기능
-
-3. **PDF 관리**
-   - 각 사용자는 최대 10개까지 PDF 업로드 가능
-   - 자신이 업로드한 PDF만 볼 수 있음
-   - 불필요한 PDF는 삭제 가능
-
-4. **로그아웃**
-   - 상단 로그아웃 버튼으로 세션 종료
-
----
-
-## API 상세
-
-### 인증 API
-- `/api/v1/auth/register` (POST, JSON): 새 사용자 등록
-  - 요청 형식: `{"email": "user@example.com", "password": "password123"}`
-  - 응답: 생성된 사용자 정보 (id, email, hashed_password 등)
-
-- `/api/v1/auth/token` (POST, form-data): 로그인 및 토큰 발급
-  - 요청 형식: `username=user@example.com&password=password123`
-  - 응답: `{"access_token": "토큰값", "token_type": "bearer"}`
-  - 참고: username 필드에 이메일 주소를 사용합니다
-
-### PDF 관리 API
-- `/upload` (POST, multipart/form-data): PDF 업로드 및 인덱싱 (인증 필요)
-- `/delete_pdf` (POST): PDF 및 벡터 삭제 (인증 필요)
-- `/pdf_list` (GET): 업로드된 PDF 목록 반환 (인증 필요)
-
-### RAG API
-- `/api/v1/rag/query` (POST, JSON): 질의응답 API (인증 필요)
-
-### API 인증 방법
-- 모든 API 호출 시 `Authorization: Bearer {token}` 헤더 필요
-- 토큰은 `/api/v1/auth/token` 엔드포인트에서 발급
-
-### RAG API 반환 예시
-```json
-{
-  "answer": "...답변 본문...\n\n[참고 문서]\n- 문서1.pdf (페이지: 3, 관련도: 높음)\n- 문서2.pdf (페이지: 5, 관련도: 중간)",
-  "sources": [
-    {
-      "filename": "문서1.pdf",
-      "source": "/full/path/to/문서1.pdf",
-      "page": 3,
-      "score": 0.92,
-      "preview": "문서 내용 미리보기..."
-    },
-    ...
-  ]
-}
-```
-- `answer` 필드 마지막에 실제로 사용된 문서의 출처가 `[참고 문서]` 섹션으로 포함됩니다.
-- `sources` 리스트에는 각 문서의 파일명, 전체 경로, 페이지, 유사도, 미리보기가 포함됩니다.
-
----
-
-## ChromaDB 폴더 정리(중요)
-
-- PDF/문서 삭제 시 `data/chroma_db` 하위 UUID 폴더는 **자동 삭제되지 않습니다** (ChromaDB 설계상 정상)
-- **컬렉션 전체 삭제** 또는 **DB 재빌드**로만 안전하게 정리 가능
-- 자세한 방법은 [Chroma Cookbook - Rebuilding Chroma DB](https://cookbook.chromadb.dev/strategies/rebuilding/) 참고
-
----
-
-## 테스트
-
-- `tests/test_api.py`에서 업로드, 삭제, 질의, 한도 등 자동화 테스트 제공
-- `pytest`로 실행 가능
-
-### 테스트 실행 방법
-
-1. (가상환경 활성화 후) 프로젝트 루트에서 아래 명령어 실행:
-
-```bash
-PYTHONPATH=. pytest tests/
-```
-
-- 모든 테스트가 통과하면 API가 정상적으로 동작함을 의미합니다.
-- 테스트 중 경고(warning)는 Pydantic 등 외부 라이브러리의 버전 이슈로, 기능 동작에는 영향이 없습니다.
-
----
-
-## 환경 및 의존성
-
-- 가상환경명: `langgraph_rag_server_venv`
-- 주요 패키지: fastapi, langchain, chromadb, langchain-chroma, langchain-ollama, pypdf, reportlab 등
-- 자세한 버전은 `env.yml` 참고
-
----
-
-## 환경 변수 설정 (.env)
-
-- 프로젝트 루트에 `.env` 파일을 생성하고 아래와 같이 작성하세요:
-
-```env
-# Ollama에서 사용할 LLM(질의응답) 모델명 (예: qwen3:30b-a3b)
-OLLAMA_LLM_MODEL=qwen3:30b-a3b
-# Ollama에서 사용할 임베딩 모델명 (예: nomic-embed-text)
-OLLAMA_EMBEDDING_MODEL=nomic-embed-text
-# Ollama 서버 주소 (기본값: http://localhost:11434)
-OLLAMA_BASE_URL=http://localhost:11434
-```
-
-- 샘플 파일: `.env.sample` 참고
-
-- **임베딩 모델 추천:**
-    - nomic-embed-text (빠르고 RAG에 최적화, Ollama 공식 지원)
-    - mxbai-embed-large (더 높은 품질이 필요할 때)
-    - all-minilm (가볍고 빠른 임베딩)
-- **LLM 모델 추천:**
-    - qwen3:30b-a3b (고성능, 한국어 지원, RAG에 적합)
-    - 필요에 따라 qwen3:8b, mistral 등도 사용 가능
-
----
-
 ## 참고 사항
 - Ollama 서버는 별도 터미널에서 반드시 실행되어야 합니다.
 - `.env` 파일이 없으면 LLM이 정상 동작하지 않습니다.
 - PDF를 업로드/처리하지 않으면 질의 시 안내 메시지가 반환됩니다.
-
-(아래에 기존 프로젝트 설명, 구조, 의존성 등 이어서 작성) 
+- 모든 서비스(FastAPI, Ollama, PostgreSQL)가 정상적으로 실행 중인지 확인하세요. 

@@ -18,6 +18,7 @@ from app.core.config import (
     OLLAMA_EMBEDDING_MODEL,
     TEMPLATES_DIR,
 )
+from app.core.database import get_db
 from app.core.document_ingest import ingest_documents
 from app.core.models import User
 from fastapi import (
@@ -35,39 +36,44 @@ from fastapi.security import OAuth2PasswordRequestForm
 from fastapi.templating import Jinja2Templates
 from langchain_chroma import Chroma
 from langchain_ollama import OllamaEmbeddings
+from sqlalchemy.orm import Session
 
 router = APIRouter()
 
 templates = Jinja2Templates(directory=TEMPLATES_DIR)
 
 
-async def get_current_user_or_none(request: Request) -> Optional[User]:
+async def get_current_user_or_none(
+    request: Request, db: Session = Depends(get_db)
+) -> Optional[User]:
     """현재 사용자를 반환하거나 없으면 None을 반환합니다."""
     try:
         token = request.cookies.get("access_token")
         if not token:
             return None
-        user = await get_current_user(token)
+        user = await get_current_user(token, db)
         return user
     except Exception:  # 일반적인 예외 처리로 변경
         return None
 
 
-async def get_current_user_from_cookie(request: Request) -> User:
+async def get_current_user_from_cookie(
+    request: Request, db: Session = Depends(get_db)
+) -> User:
     """쿠키 또는 헤더에서 현재 사용자를 가져옵니다."""
     # 헤더에서 토큰 확인
     auth_header = request.headers.get("Authorization")
     if auth_header and auth_header.startswith("Bearer "):
         token = auth_header.replace("Bearer ", "")
         try:
-            user = await get_current_user(token)
+            user = await get_current_user(token, db)
             return user
         except Exception:
             # 헤더 토큰이 실패하면 쿠키 확인
             pass
 
     # 쿠키에서 토큰 확인
-    user = await get_current_user_or_none(request)
+    user = await get_current_user_or_none(request, db)
     if user is None:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -78,29 +84,33 @@ async def get_current_user_from_cookie(request: Request) -> User:
 
 
 @router.get("/", response_class=HTMLResponse)
-async def index(request: Request):
+async def index(request: Request, db: Session = Depends(get_db)):
     """메인 인덱스 페이지(HTML)를 렌더링합니다."""
-    user = await get_current_user_or_none(request)
+    user = await get_current_user_or_none(request, db)
     if not user:
         return RedirectResponse(url="/login")
-    return templates.TemplateResponse("index.html", {"request": request, "user": user})
+    return templates.TemplateResponse(request, "index.html", {"user": user})
 
 
 @router.get("/login", response_class=HTMLResponse)
 async def login_page(request: Request):
     """로그인 페이지를 렌더링합니다."""
-    return templates.TemplateResponse("login.html", {"request": request})
+    return templates.TemplateResponse(request, "login.html", {})
 
 
 @router.post("/login")
-async def login(request: Request, form_data: OAuth2PasswordRequestForm = Depends()):
+async def login(
+    request: Request,
+    form_data: OAuth2PasswordRequestForm = Depends(),
+    db: Session = Depends(get_db),
+):
     """로그인을 처리합니다."""
-    user = authenticate_user(form_data.username, form_data.password)
+    user = authenticate_user(db, form_data.username, form_data.password)
     if not user:
         return templates.TemplateResponse(
+            request,
             "login.html",
             {
-                "request": request,
                 "error": "이메일 또는 비밀번호가 올바르지 않습니다.",
             },
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -122,7 +132,7 @@ async def login(request: Request, form_data: OAuth2PasswordRequestForm = Depends
 @router.get("/register", response_class=HTMLResponse)
 async def register_page(request: Request):
     """회원가입 페이지를 렌더링합니다."""
-    return templates.TemplateResponse("register.html", {"request": request})
+    return templates.TemplateResponse(request, "register.html", {})
 
 
 @router.post("/register")
@@ -131,20 +141,20 @@ async def register(
     email: str = Form(...),
     password: str = Form(...),
     password2: str = Form(...),
+    db: Session = Depends(get_db),
 ):
     """회원가입을 처리합니다."""
     if password != password2:
         return templates.TemplateResponse(
+            request,
             "register.html",
-            {"request": request, "error": "비밀번호가 일치하지 않습니다."},
+            {"error": "비밀번호가 일치하지 않습니다."},
         )
     try:
-        create_new_user(email, password)  # 반환값은 사용하지 않음
+        create_new_user(db, email, password)  # db 세션 전달
         return RedirectResponse(url="/login", status_code=status.HTTP_302_FOUND)
     except HTTPException as e:
-        return templates.TemplateResponse(
-            "register.html", {"request": request, "error": e.detail}
-        )
+        return templates.TemplateResponse(request, "register.html", {"error": e.detail})
 
 
 @router.post("/logout")
@@ -156,9 +166,9 @@ async def logout():
 
 
 @router.get("/pdf_list")
-async def pdf_list(request: Request):
+async def pdf_list(request: Request, db: Session = Depends(get_db)):
     """업로드된 PDF 파일 목록을 반환합니다."""
-    current_user = await get_current_user_from_cookie(request)
+    current_user = await get_current_user_from_cookie(request, db)
 
     user_dir = os.path.join(DOCUMENTS_DIR, current_user.id)
     if not os.path.exists(user_dir):
@@ -168,9 +178,11 @@ async def pdf_list(request: Request):
 
 
 @router.post("/upload")
-async def upload_pdf(request: Request, file: UploadFile = File(...)):
+async def upload_pdf(
+    request: Request, file: UploadFile = File(...), db: Session = Depends(get_db)
+):
     """PDF 파일을 업로드하고 벡터스토어에 인덱싱합니다."""
-    current_user = await get_current_user_from_cookie(request)
+    current_user = await get_current_user_from_cookie(request, db)
 
     if not file.filename:
         raise HTTPException(status_code=400, detail="파일명이 없습니다.")
@@ -201,6 +213,7 @@ async def delete_pdf(
     request: Request,
     filename: str = None,
     form_filename: str = Form(None, alias="filename"),
+    db: Session = Depends(get_db),
 ):
     """PDF 파일을 삭제하고 벡터스토어에서 해당 벡터도 제거합니다.
     filename 파라미터는 쿼리 파라미터나 폼 데이터로 전달할 수 있습니다.
@@ -210,7 +223,7 @@ async def delete_pdf(
     if not actual_filename:
         raise HTTPException(status_code=400, detail="파일명이 필요합니다.")
 
-    current_user = await get_current_user_from_cookie(request)
+    current_user = await get_current_user_from_cookie(request, db)
 
     user_dir = os.path.join(DOCUMENTS_DIR, current_user.id)
     file_path = os.path.join(user_dir, actual_filename)

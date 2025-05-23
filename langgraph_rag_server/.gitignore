@@ -5,3 +5,21 @@ data/chroma_db/
 data/documents/
 
 *.env
+*.env.local
+
+# Python
+*.pyc
+*.pyo
+*.pyd
+*.so
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Logs
+*.log
+
+# Alembic
+# alembic/versions/*.py  # Uncomment if you want to ignore migration files
