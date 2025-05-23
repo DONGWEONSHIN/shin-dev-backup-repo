@@ -79,20 +79,17 @@ conda activate langrag_venv
 
 2. 데이터베이스 마이그레이션 설정
 ```bash
-# 1. 기존 alembic 디렉토리 삭제 (이미 존재하는 경우)
-rm -rf alembic
+# 1. alembic 초기화 스크립트 실행
+./scripts/init_alembic.sh
 
-# 2. alembic 초기화
-alembic init alembic
-
-# 3. alembic.ini 파일에서 sqlalchemy.url 수정
+# 2. alembic.ini 파일에서 sqlalchemy.url 수정
 # sqlalchemy.url = postgresql://your_username:your_password@localhost/your_database_name
 
-# 4. 마이그레이션 생성
+# 3. 마이그레이션 생성
 export PYTHONPATH=$PYTHONPATH:$(pwd)
 alembic revision --autogenerate -m "Create users table"
 
-# 5. 마이그레이션 적용
+# 4. 마이그레이션 적용
 alembic upgrade head
 ```
 
