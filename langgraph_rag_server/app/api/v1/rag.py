@@ -58,8 +58,17 @@ async def rag_query(
     request: Request, query_request: QueryRequest, db: Session = Depends(get_db)
 ) -> Dict[str, Any]:
     """질문에 대해 RAG 기반 답변을 반환합니다."""
+    # 입력값 검증: 길이 제한 및 공백만 입력 방지
+    q = query_request.question
+    if not (1 <= len(q.strip()) <= 300):
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "질문은 1~300자 이내로 입력해야 하며, " "공백만 입력할 수 없습니다."
+            ),
+        )
     current_user = await get_current_user_api(request, None, db)
-    answer = rag_engine.answer(query_request.question, current_user.id)
+    answer = rag_engine.answer(q, current_user.id)
     # 벡터스토어가 비어있거나 collection이 없을 때 안내 메시지 반환
     if answer["answer"].startswith("문서가 업로드/처리되지 않았거나") or answer[
         "answer"

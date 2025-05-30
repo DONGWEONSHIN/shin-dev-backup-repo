@@ -5,6 +5,7 @@ from datetime import timedelta
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
+from pydantic import ValidationError
 
 from app.core.auth import (
     ACCESS_TOKEN_EXPIRE_MINUTES,
@@ -44,4 +45,15 @@ async def register_user(
     db: Session = Depends(get_db),
 ) -> User:
     """새로운 사용자를 등록합니다."""
-    return create_new_user(db, user_data.email, user_data.password)
+    try:
+        return create_new_user(db, user_data.email, user_data.password)
+    except ValidationError as ve:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=ve.errors(),
+        )
+    except ValueError as ve:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=str(ve),
+        )

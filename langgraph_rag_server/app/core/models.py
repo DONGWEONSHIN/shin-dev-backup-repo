@@ -3,9 +3,8 @@
 from datetime import datetime
 from typing import Optional
 
-from pydantic import BaseModel, EmailStr, ConfigDict
+from pydantic import BaseModel, EmailStr, ConfigDict, field_validator
 from sqlalchemy import Boolean, Column, DateTime, String
-from sqlalchemy.ext.declarative import declarative_base
 
 from app.core.database import Base
 
@@ -43,6 +42,21 @@ class UserCreate(BaseModel):
 
     email: EmailStr
     password: str
+
+    @classmethod
+    def validate_password(cls, value: str) -> str:
+        import re
+
+        if len(value) < 8:
+            raise ValueError("비밀번호는 8자 이상이어야 합니다.")
+        if not re.search(r"[A-Za-z]", value):
+            raise ValueError("비밀번호에는 영문자가 포함되어야 합니다.")
+        if not re.search(r"[0-9]", value):
+            raise ValueError("비밀번호에는 숫자가 포함되어야 합니다.")
+        return value
+
+    # Pydantic v2 field validator
+    _validate_password = field_validator("password")(validate_password)
 
 
 class Token(BaseModel):

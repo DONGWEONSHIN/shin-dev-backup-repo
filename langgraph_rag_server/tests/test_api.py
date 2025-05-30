@@ -1,14 +1,11 @@
 import platform
-import sys
 import tempfile
 from pathlib import Path
-
-# 프로젝트 루트 경로를 Python 경로에 추가
 import os
-
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
-
-from app.core.auth import create_new_user
+from unittest.mock import patch
+import jwt
+from datetime import datetime, timedelta
+from app.core.auth import create_new_user, SECRET_KEY, ALGORITHM
 from app.core.config import ensure_directories
 from app.main import app
 from app.core.database import SessionLocal
@@ -18,6 +15,7 @@ from reportlab.lib.pagesizes import letter
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
 from reportlab.pdfgen import canvas
+import uuid
 
 client = TestClient(app)
 
@@ -50,7 +48,6 @@ def setup_module(module):
     ensure_directories()
 
     # 기존 문서 디렉토리 정리
-    import shutil
     from app.core.config import DOCUMENTS_DIR
 
     # 사용자 디렉토리를 비웁니다 (파일만 삭제, 디렉토리 구조는 유지)
@@ -80,7 +77,11 @@ def teardown_module(module):
     db = SessionLocal()
     try:
         # 테스트 사용자 삭제
-        test_users = ["user1@example.com", "user2@example.com", "test_user@example.com"]
+        test_users = [
+            "user1@example.com",
+            "user2@example.com",
+            "test_user@example.com",
+        ]
         for email in test_users:
             user = db.query(UserDB).filter(UserDB.email == email).first()
             if user:
@@ -275,23 +276,15 @@ def test_authentication_required():
 
 def test_register_login_logout():
     # 새 사용자 등록
-    email = "test_user@example.com"
-    password = "test_password"
+    email = f"test_user_{uuid.uuid4()}@example.com"
+    password = "test_password2"
 
-    # 기존 사용자 있을 수 있으니 삭제 먼저 시도 (에러 무시)
-    try:
-        from app.core.auth import fake_users_db
-
-        if email in fake_users_db:
-            del fake_users_db[email]
-    except Exception:
-        pass
-
-    # 회원가입
+    # 회원가입 (API)
     response = client.post(
-        "/register", data={"email": email, "password": password, "password2": password}
+        "/api/v1/auth/register",
+        json={"email": email, "password": password},
     )
-    assert response.status_code in [200, 302]
+    assert response.status_code == 200
 
     # 로그인
     response = client.post(
@@ -304,3 +297,178 @@ def test_register_login_logout():
     headers = {"Authorization": f"Bearer {response.json()['access_token']}"}
     response = client.get("/pdf_list", headers=headers)
     assert response.status_code == 200
+
+
+def test_rag_query_llm_error():
+    headers = login_user("user1@example.com", "password123")
+    # PDF 1개 업로드
+    with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as tmp:
+        create_test_pdf(tmp.name, text="테스트 PDF\n고구려 장수왕")
+        tmp.seek(0)
+        with open(tmp.name, "rb") as f:
+            response = client.post(
+                "/upload",
+                files={"file": ("test_rag.pdf", f, "application/pdf")},
+                headers=headers,
+            )
+        assert response.status_code == 200
+    query = {"question": "고구려 장수왕은 누구입니까?"}
+    with patch(
+        "app.core.rag_engine.cached_llm_response", side_effect=Exception("LLM Error!")
+    ):
+        response = client.post("/api/v1/rag/query", json=query, headers=headers)
+        assert response.status_code == 200
+        assert "LLM 호출 중 오류가 발생" in response.json()["answer"]
+    # 정리: 업로드한 PDF 삭제
+    client.post("/delete_pdf", params={"filename": "test_rag.pdf"}, headers=headers)
+
+
+def test_rag_query_vectorstore_error():
+    headers = login_user("user1@example.com", "password123")
+    query = {"question": "벡터스토어 예외 테스트"}
+    # 벡터스토어에서 InvalidCollectionException 발생 모킹
+    with patch(
+        "app.core.rag_engine.Chroma.similarity_search_with_score",
+        side_effect=Exception("Vectorstore Error!"),
+    ):
+        response = client.post("/api/v1/rag/query", json=query, headers=headers)
+        assert response.status_code == 200
+        assert "알 수 없는 오류가 발생" in response.json()["answer"]
+
+
+def test_rag_query_unknown_error():
+    headers = login_user("user1@example.com", "password123")
+    query = {"question": "알 수 없는 예외 테스트"}
+    # Chroma 생성에서 예외 발생 모킹
+    with patch("app.core.rag_engine.Chroma", side_effect=Exception("Unknown Error!")):
+        response = client.post("/api/v1/rag/query", json=query, headers=headers)
+        assert response.status_code == 200
+        assert "알 수 없는 오류가 발생" in response.json()["answer"]
+
+
+def test_register_password_policy():
+    # 8자 미만
+    response = client.post(
+        "/api/v1/auth/register",
+        json={"email": "shortpw@example.com", "password": "a1b2c"},
+    )
+    assert response.status_code == 422
+    assert any("8자 이상" in err["msg"] for err in response.json()["detail"])
+
+    # 영문자 없음
+    response = client.post(
+        "/api/v1/auth/register",
+        json={"email": "nopwalpha@example.com", "password": "12345678"},
+    )
+    assert response.status_code == 422
+    assert any("영문자" in err["msg"] for err in response.json()["detail"])
+
+    # 숫자 없음
+    response = client.post(
+        "/api/v1/auth/register",
+        json={"email": "nopwdigit@example.com", "password": "abcdefgh"},
+    )
+    assert response.status_code == 422
+    assert any("숫자" in err["msg"] for err in response.json()["detail"])
+
+
+def test_invalid_token_cases():
+    # 정상 로그인 후 토큰 획득
+    headers = login_user("user1@example.com", "password123")
+    valid_token = headers["Authorization"].split()[1]
+
+    # 변조된 토큰
+    tampered_token = valid_token[:-1] + ("a" if valid_token[-1] != "a" else "b")
+    tampered_headers = {"Authorization": f"Bearer {tampered_token}"}
+    response = client.get("/pdf_list", headers=tampered_headers)
+    assert response.status_code == 401
+
+    # 잘못된 형식의 토큰
+    bad_headers = {"Authorization": "Bearer not.a.jwt.token"}
+    response = client.get("/pdf_list", headers=bad_headers)
+    assert response.status_code == 401
+
+    # 만료된 토큰 (iat/exp를 과거로 설정)
+    expired_payload = {
+        "sub": "user1@example.com",
+        "exp": datetime.utcnow() - timedelta(hours=1),
+        "iat": datetime.utcnow() - timedelta(hours=2),
+    }
+    expired_token = jwt.encode(expired_payload, SECRET_KEY, algorithm=ALGORITHM)
+    expired_headers = {"Authorization": f"Bearer {expired_token}"}
+    response = client.get("/pdf_list", headers=expired_headers)
+    assert response.status_code == 401
+
+
+def test_pdf_upload_invalid_extension():
+    headers = login_user("user1@example.com", "password123")
+    with tempfile.NamedTemporaryFile(suffix=".txt", delete=False) as tmp:
+        tmp.write(b"This is not a PDF.")
+        tmp.seek(0)
+        with open(tmp.name, "rb") as f:
+            response = client.post(
+                "/upload",
+                files={"file": ("test.txt", f, "text/plain")},
+                headers=headers,
+            )
+        assert response.status_code == 400
+        assert "PDF 파일만 업로드할 수 있습니다." in response.json()["detail"]
+
+
+def test_pdf_upload_invalid_mime_type():
+    headers = login_user("user1@example.com", "password123")
+    with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as tmp:
+        tmp.write(b"This is not a PDF.")
+        tmp.seek(0)
+        with open(tmp.name, "rb") as f:
+            response = client.post(
+                "/upload",
+                files={"file": ("test.pdf", f, "text/plain")},
+                headers=headers,
+            )
+        assert response.status_code == 400
+        assert "PDF 파일만 업로드할 수 있습니다." in response.json()["detail"]
+
+
+def test_pdf_upload_too_large():
+    headers = login_user("user1@example.com", "password123")
+    with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as tmp:
+        tmp.write(b"%PDF-1.4\n" + b"0" * (10 * 1024 * 1024 + 1))  # 10MB + 1 byte
+        tmp.seek(0)
+        with open(tmp.name, "rb") as f:
+            response = client.post(
+                "/upload",
+                files={
+                    "file": (
+                        "large.pdf",
+                        f,
+                        "application/pdf",
+                    )
+                },
+                headers=headers,
+            )
+        assert response.status_code == 400
+        assert (
+            "최대 10MB 이하의 파일만 업로드할 수 있습니다." in response.json()["detail"]
+        )
+
+
+def test_pdf_upload_invalid_signature():
+    headers = login_user("user1@example.com", "password123")
+    with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as tmp:
+        tmp.write(b"NOTPDFDATA")
+        tmp.seek(0)
+        with open(tmp.name, "rb") as f:
+            response = client.post(
+                "/upload",
+                files={
+                    "file": (
+                        "notpdf.pdf",
+                        f,
+                        "application/pdf",
+                    )
+                },
+                headers=headers,
+            )
+        assert response.status_code == 400
+        assert "유효한 PDF 파일이 아닙니다." in response.json()["detail"]

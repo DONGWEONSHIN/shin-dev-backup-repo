@@ -3,6 +3,7 @@
 import os
 from datetime import timedelta
 from typing import Optional
+import re
 
 from app.core.auth import (
     ACCESS_TOKEN_EXPIRE_MINUTES,
@@ -43,24 +44,11 @@ router = APIRouter()
 templates = Jinja2Templates(directory=TEMPLATES_DIR)
 
 
-async def get_current_user_or_none(
-    request: Request, db: Session = Depends(get_db)
-) -> Optional[User]:
-    """현재 사용자를 반환하거나 없으면 None을 반환합니다."""
-    try:
-        token = request.cookies.get("access_token")
-        if not token:
-            return None
-        user = await get_current_user(token, db)
-        return user
-    except Exception:  # 일반적인 예외 처리로 변경
-        return None
-
-
-async def get_current_user_from_cookie(
-    request: Request, db: Session = Depends(get_db)
-) -> User:
-    """쿠키 또는 헤더에서 현재 사용자를 가져옵니다."""
+# 인증 토큰에서 사용자 추출 헬퍼
+async def extract_user_from_request(request: Request, db: Session) -> Optional[User]:
+    """
+    헤더 또는 쿠키에서 토큰을 추출해 사용자 반환 (없으면 None)
+    """
     # 헤더에서 토큰 확인
     auth_header = request.headers.get("Authorization")
     if auth_header and auth_header.startswith("Bearer "):
@@ -69,11 +57,30 @@ async def get_current_user_from_cookie(
             user = await get_current_user(token, db)
             return user
         except Exception:
-            # 헤더 토큰이 실패하면 쿠키 확인
             pass
-
     # 쿠키에서 토큰 확인
-    user = await get_current_user_or_none(request, db)
+    token = request.cookies.get("access_token")
+    if token:
+        try:
+            user = await get_current_user(token, db)
+            return user
+        except Exception:
+            pass
+    return None
+
+
+async def get_current_user_or_none(
+    request: Request, db: Session = Depends(get_db)
+) -> Optional[User]:
+    """현재 사용자를 반환하거나 없으면 None을 반환합니다."""
+    return await extract_user_from_request(request, db)
+
+
+async def get_current_user_from_cookie(
+    request: Request, db: Session = Depends(get_db)
+) -> User:
+    """쿠키 또는 헤더에서 현재 사용자를 가져옵니다."""
+    user = await extract_user_from_request(request, db)
     if user is None:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
@@ -150,11 +157,26 @@ async def register(
             "register.html",
             {"error": "비밀번호가 일치하지 않습니다."},
         )
+    # 비밀번호 정책: 최소 8자, 영문+숫자 포함
+    if (
+        len(password) < 8
+        or not re.search(r"[A-Za-z]", password)
+        or not re.search(r"[0-9]", password)
+    ):
+        return templates.TemplateResponse(
+            request,
+            "register.html",
+            {"error": "비밀번호는 8자 이상, 영문과 숫자를 모두 포함해야 합니다."},
+        )
     try:
-        create_new_user(db, email, password)  # db 세션 전달
+        create_new_user(db, email, password)
         return RedirectResponse(url="/login", status_code=status.HTTP_302_FOUND)
     except HTTPException as e:
-        return templates.TemplateResponse(request, "register.html", {"error": e.detail})
+        return templates.TemplateResponse(
+            request,
+            "register.html",
+            {"error": e.detail},
+        )
 
 
 @router.post("/logout")
@@ -179,13 +201,38 @@ async def pdf_list(request: Request, db: Session = Depends(get_db)):
 
 @router.post("/upload")
 async def upload_pdf(
-    request: Request, file: UploadFile = File(...), db: Session = Depends(get_db)
+    request: Request,
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db),
 ):
     """PDF 파일을 업로드하고 벡터스토어에 인덱싱합니다."""
     current_user = await get_current_user_from_cookie(request, db)
 
-    if not file.filename:
-        raise HTTPException(status_code=400, detail="파일명이 없습니다.")
+    # 파일명 검증: 경로 탐색 금지
+    if (
+        not file.filename
+        or ".." in file.filename
+        or "/" in file.filename
+        or "\\" in file.filename
+    ):
+        raise HTTPException(status_code=400, detail="유효하지 않은 파일명입니다.")
+
+    # 확장자 및 MIME 타입 체크
+    if not file.filename.lower().endswith(".pdf"):
+        raise HTTPException(status_code=400, detail="PDF 파일만 업로드할 수 있습니다.")
+    if file.content_type not in ["application/pdf", "application/octet-stream"]:
+        raise HTTPException(status_code=400, detail="PDF 파일만 업로드할 수 있습니다.")
+
+    # 파일 크기 제한 (10MB)
+    contents = await file.read()
+    if len(contents) > 10 * 1024 * 1024:
+        raise HTTPException(
+            status_code=400, detail="최대 10MB 이하의 파일만 업로드할 수 있습니다."
+        )
+
+    # PDF 시그니처 검사
+    if not contents.startswith(b"%PDF"):
+        raise HTTPException(status_code=400, detail="유효한 PDF 파일이 아닙니다.")
 
     user_dir = os.path.join(DOCUMENTS_DIR, current_user.id)
     if not os.path.exists(user_dir):
@@ -200,7 +247,7 @@ async def upload_pdf(
     file_path = os.path.join(user_dir, file.filename)
     print(f"[UPLOAD] 실제 저장 경로: {file_path}")
     with open(file_path, "wb") as f:
-        f.write(await file.read())
+        f.write(contents)
 
     # 업로드 후 자동 문서 처리
     result = ingest_documents(user_dir, current_user.id)
