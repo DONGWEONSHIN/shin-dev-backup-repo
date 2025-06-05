@@ -86,6 +86,12 @@ def teardown_module(module):
             user = db.query(UserDB).filter(UserDB.email == email).first()
             if user:
                 db.delete(user)
+        # test_user_로 시작하는 모든 이메일 삭제
+        extra_users = (
+            db.query(UserDB).filter(UserDB.email.like("test_user_%@example.com")).all()
+        )
+        for user in extra_users:
+            db.delete(user)
         db.commit()
     except Exception as e:
         print(f"테스트 사용자 삭제 중 오류 발생: {e}")
@@ -158,10 +164,13 @@ def test_rag_query_no_docs():
     response = client.get("/pdf_list", headers=headers)
     for pdf in response.json()["pdfs"]:
         client.post("/delete_pdf", params={"filename": pdf}, headers=headers)
-    query = {"question": "테스트 질문입니다."}
+    query = {
+        "question": "테스트 질문입니다.",
+        "thinking_mode": True,
+    }
     response = client.post("/api/v1/rag/query", json=query, headers=headers)
     assert response.status_code == 200
-    assert "문서가 없습니다" in response.json()["answer"]
+    assert "관련 문서를 찾을 수 없습니다." in response.json()["answer"]
 
 
 def test_rag_query_with_docs():
@@ -179,7 +188,10 @@ def test_rag_query_with_docs():
         assert response.status_code == 200
 
     # 질의
-    query = {"question": "고구려 장수왕은 누구입니까?"}
+    query = {
+        "question": "고구려 장수왕은 누구입니까?",
+        "thinking_mode": True,
+    }
     response = client.post("/api/v1/rag/query", json=query, headers=headers)
     assert response.status_code == 200
     data = response.json()
@@ -233,7 +245,10 @@ def test_multi_user_data_isolation():
     assert "user1_doc.pdf" not in user2_docs
 
     # 사용자1과 사용자2에 대해 비슷한 질문을 하고 결과 확인
-    query = {"question": "누가 왕입니까?"}
+    query = {
+        "question": "누가 왕입니까?",
+        "thinking_mode": True,
+    }
 
     # 사용자1의 질문 결과에는 "백제" 또는 "무령왕"이 포함되어야 함
     response = client.post("/api/v1/rag/query", json=query, headers=user1_headers)
@@ -312,11 +327,19 @@ def test_rag_query_llm_error():
                 headers=headers,
             )
         assert response.status_code == 200
-    query = {"question": "고구려 장수왕은 누구입니까?"}
+    query = {
+        "question": "고구려 장수왕은 누구입니까?",
+        "thinking_mode": True,
+    }
     with patch(
-        "app.core.rag_engine.cached_llm_response", side_effect=Exception("LLM Error!")
+        "app.core.rag_engine.cached_llm_response",
+        side_effect=Exception("LLM Error!"),
     ):
-        response = client.post("/api/v1/rag/query", json=query, headers=headers)
+        response = client.post(
+            "/api/v1/rag/query",
+            json=query,
+            headers=headers,
+        )
         assert response.status_code == 200
         assert "LLM 호출 중 오류가 발생" in response.json()["answer"]
     # 정리: 업로드한 PDF 삭제
@@ -325,23 +348,40 @@ def test_rag_query_llm_error():
 
 def test_rag_query_vectorstore_error():
     headers = login_user("user1@example.com", "password123")
-    query = {"question": "벡터스토어 예외 테스트"}
+    query = {
+        "question": "벡터스토어 예외 테스트",
+        "thinking_mode": True,
+    }
     # 벡터스토어에서 InvalidCollectionException 발생 모킹
     with patch(
         "app.core.rag_engine.Chroma.similarity_search_with_score",
         side_effect=Exception("Vectorstore Error!"),
     ):
-        response = client.post("/api/v1/rag/query", json=query, headers=headers)
+        response = client.post(
+            "/api/v1/rag/query",
+            json=query,
+            headers=headers,
+        )
         assert response.status_code == 200
         assert "알 수 없는 오류가 발생" in response.json()["answer"]
 
 
 def test_rag_query_unknown_error():
     headers = login_user("user1@example.com", "password123")
-    query = {"question": "알 수 없는 예외 테스트"}
+    query = {
+        "question": "알 수 없는 예외 테스트",
+        "thinking_mode": True,
+    }
     # Chroma 생성에서 예외 발생 모킹
-    with patch("app.core.rag_engine.Chroma", side_effect=Exception("Unknown Error!")):
-        response = client.post("/api/v1/rag/query", json=query, headers=headers)
+    with patch(
+        "app.core.rag_engine.Chroma",
+        side_effect=Exception("Unknown Error!"),
+    ):
+        response = client.post(
+            "/api/v1/rag/query",
+            json=query,
+            headers=headers,
+        )
         assert response.status_code == 200
         assert "알 수 없는 오류가 발생" in response.json()["answer"]
 
@@ -472,3 +512,43 @@ def test_pdf_upload_invalid_signature():
             )
         assert response.status_code == 400
         assert "유효한 PDF 파일이 아닙니다." in response.json()["detail"]
+
+
+def test_rag_query_thinking_mode_true_and_false():
+    headers = login_user("user1@example.com", "password123")
+    # PDF 업로드
+    with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as tmp:
+        create_test_pdf(tmp.name, text="테스트 PDF\n고구려 장수왕")
+        tmp.seek(0)
+        with open(tmp.name, "rb") as f:
+            response = client.post(
+                "/upload",
+                files={"file": ("test_rag.pdf", f, "application/pdf")},
+                headers=headers,
+            )
+        assert response.status_code == 200
+
+    # 추론 모드 (thinking_mode=True)
+    query = {
+        "question": "고구려 장수왕은 누구입니까?",
+        "thinking_mode": True,
+    }
+    response = client.post("/api/v1/rag/query", json=query, headers=headers)
+    assert response.status_code == 200
+    data = response.json()
+    assert "think" in data
+    assert data["think"] != ""  # 추론 내용이 있어야 함
+
+    # 비추론 모드 (thinking_mode=False)
+    query = {
+        "question": "고구려 장수왕은 누구입니까?",
+        "thinking_mode": False,
+    }
+    response = client.post("/api/v1/rag/query", json=query, headers=headers)
+    assert response.status_code == 200
+    data = response.json()
+    assert "think" in data
+    assert data["think"] == ""  # 추론 내용이 없어야 함
+
+    # 정리: 업로드한 PDF 삭제
+    client.post("/delete_pdf", params={"filename": "test_rag.pdf"}, headers=headers)

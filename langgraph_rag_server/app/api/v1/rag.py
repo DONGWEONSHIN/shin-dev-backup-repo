@@ -19,6 +19,7 @@ class QueryRequest(BaseModel):
     """질문 요청을 위한 데이터 모델입니다."""
 
     question: str
+    thinking_mode: Optional[bool] = True
 
 
 async def get_current_user_api(
@@ -68,13 +69,15 @@ async def rag_query(
             ),
         )
     current_user = await get_current_user_api(request, None, db)
-    answer = rag_engine.answer(q, current_user.id)
-    # 벡터스토어가 비어있거나 collection이 없을 때 안내 메시지 반환
-    if answer["answer"].startswith("문서가 업로드/처리되지 않았거나") or answer[
-        "answer"
-    ].startswith("관련 문서를 찾을 수 없습니다"):
-        return {
-            "answer": "문서가 없습니다. PDF를 먼저 업로드하고 처리하세요.",
-            "sources": [],
-        }
-    return answer
+    # thinking_mode 플래그에 따라 추론 여부 결정
+    thinking_mode = (
+        query_request.thinking_mode if query_request.thinking_mode is not None else True
+    )
+    answer = rag_engine.answer(q, current_user.id, thinking_mode=thinking_mode)
+    think_value = answer.get("think", "") if thinking_mode else ""
+    sources_value = answer.get("sources", [])
+    return {
+        "answer": answer["answer"],
+        "think": think_value,
+        "sources": sources_value,
+    }

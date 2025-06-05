@@ -38,6 +38,22 @@
       padding: 2px 4px;
       border-radius: 3px;
     }
+    #rag-form .input-group {
+      flex-wrap: nowrap;
+    }
+    #rag-form .btn-group .btn {
+      min-width: 80px;
+    }
+    @media (max-width: 700px) {
+      #rag-form .input-group {
+        flex-direction: column;
+        align-items: stretch;
+      }
+      #rag-form .btn, #rag-form .btn-group {
+        margin-top: 8px !important;
+        margin-left: 0 !important;
+      }
+    }
   </style>
 </head>
 <body>
@@ -51,12 +67,18 @@
 
     <h1>LangGraph RAG Web Demo</h1>
     <form id="rag-form" name="rag-form" class="mb-4">
-      <div class="input-group">
+      <div class="input-group mb-2">
         <input type="text" id="question" class="form-control" placeholder="질문을 입력하세요" required>
-        <button type="submit" class="btn btn-primary">질문하기</button>
+        <button type="submit" class="btn btn-primary ms-2">질문하기</button>
+        <button type="button" id="reset-btn" class="btn btn-secondary ms-2">초기화</button>
+      </div>
+      <div class="form-check form-switch mt-2">
+        <input class="form-check-input" type="checkbox" id="inferSwitch" checked>
+        <label class="form-check-label" for="inferSwitch" id="inferLabel">추론</label>
       </div>
     </form>
-    <div id="result" class="mb-4"></div>
+    <div id="answer-result" class="mb-2"></div>
+    <div id="think-result" class="mb-4"></div>
 
     <hr class="my-4">
 
@@ -133,14 +155,18 @@
     document.getElementById("rag-form").addEventListener("submit", async function(e) {
       e.preventDefault();
       const question = document.getElementById("question").value;
-      const resultDiv = document.getElementById("result");
-      resultDiv.innerHTML = '<div class="alert alert-info">질문 처리 중...</div>';
+      const inferSwitch = document.getElementById("inferSwitch");
+      const thinkingMode = inferSwitch.checked;
+      const answerDiv = document.getElementById("answer-result");
+      const thinkDiv = document.getElementById("think-result");
+      answerDiv.innerHTML = '<div class="alert alert-info">질문 처리 중...</div>';
+      thinkDiv.innerHTML = '';
       try {
         const res = await fetch("/api/v1/rag/query", {
           method: "POST",
           credentials: 'include',
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ question })
+          body: JSON.stringify({ question, thinking_mode: thinkingMode })
         });
         if (!res.ok) {
           if (res.status === 401) {
@@ -150,12 +176,22 @@
           throw new Error(`HTTP error! status: ${res.status}`);
         }
         const data = await res.json();
-        resultDiv.innerHTML = `<div class="alert alert-success">
-          <div class="markdown-content">${marked.parse(data.answer)}</div>
-        </div>`;
+        answerDiv.innerHTML = `<div class="alert alert-success"><div class="markdown-content">${marked.parse(data.answer)}</div></div>`;
+        if (data.think) {
+          thinkDiv.innerHTML = `<div class="alert alert-secondary"><b>추론 내용</b><div class="markdown-content">${marked.parse(data.think)}</div></div>`;
+        } else {
+          thinkDiv.innerHTML = '';
+        }
       } catch (error) {
-        resultDiv.innerHTML = '<div class="alert alert-danger">오류가 발생했습니다.</div>';
+        answerDiv.innerHTML = '<div class="alert alert-danger">오류가 발생했습니다.</div>';
+        thinkDiv.innerHTML = '';
       }
+    });
+
+    document.getElementById("reset-btn").addEventListener("click", function() {
+      document.getElementById("question").value = "";
+      document.getElementById("answer-result").innerHTML = "";
+      document.getElementById("think-result").innerHTML = "";
     });
 
     document.getElementById("upload-form").addEventListener("submit", async function(e) {

@@ -62,8 +62,8 @@ def cached_llm_response(prompt_hash: str, prompt: str):
     return str(content)
 
 
-def answer(question: str, user_id: str) -> dict:
-    """질문에 대해 RAG 기반 답변과 출처를 반환합니다."""
+def answer(question: str, user_id: str, thinking_mode: bool = True) -> dict:
+    """질문에 대해 RAG 기반 답변과 출처, (옵션)추론을 반환합니다."""
     collection_name = get_user_collection_name(user_id)
     try:
         vectorstore = Chroma(
@@ -106,18 +106,34 @@ def answer(question: str, user_id: str) -> dict:
                 f"- {src['filename']} (페이지: {src['page']}, 관련도: {rel})"
             )
         context_text = "\n---\n".join(context_chunks)
+        # 프롬프트 본문은 추론/비추론 모두 완전히 동일하게 작성
         prompt = (
-            f"아래 문서 내용을 참고하여 사용자의 질문에 답변하세요.\n\n[문서]\n{context_text}"
-            f"\n\n[질문]\n{question}\n\n[답변]"
+            f"아래 문서 내용을 참고하여 사용자의 질문에 답변하세요.\n"
+            f"[문서]\n{context_text}\n"
+            f"[질문]\n{question}\n"
+            f"[답변] 아래에 답변을 작성하세요.\n"
+            f"[답변]"
         )
+        if not thinking_mode:
+            prompt += "\n/no_think"
         try:
-            prompt_hash = hashlib.sha256(
-                (question + context_text).encode("utf-8")
-            ).hexdigest()
+            prompt_hash = hashlib.sha256((question + context_text + str(thinking_mode)).encode("utf-8")).hexdigest()
             answer_text = cached_llm_response(prompt_hash, prompt)
+            logger.info(f"[LLM 응답 원문] {answer_text}")
+            # <think>...</think> 태그가 있으면 그 안의 내용을 think, 이후 내용을 answer로 분리. 없으면 전체를 answer로, think는 빈 문자열.
+            import re
+            answer_part = ""
+            think_part = ""
+            m3 = re.search(r"<think>(.*?)</think>(.*)", answer_text, re.DOTALL)
+            if m3:
+                think_part = m3.group(1).strip()
+                answer_part = m3.group(2).strip()
+            else:
+                answer_part = answer_text.strip()
+            # 참고 문서 정보 추가
             if source_lines:
-                answer_text += "\n\n[참고 문서]\n" + "\n".join(source_lines)
-            return {"answer": answer_text, "sources": sources}
+                answer_part += "\n\n[참고 문서]\n" + "\n".join(source_lines)
+            return {"answer": answer_part, "think": think_part, "sources": sources}
         except Exception as e:
             logger.error(f"[RAG] LLM 호출 오류: {e}")
             return {"answer": ERR_LLM, "sources": sources}
